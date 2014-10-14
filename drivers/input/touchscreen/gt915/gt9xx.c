@@ -775,7 +775,7 @@ static void goodix_ts_work_func(struct work_struct *work)
             {
                 GTP_INFO("Double click to light up the screen!");
                 doze_status = DOZE_WAKEUP;
-#if 1
+#if 0
 				input_report_key(ts->input_dev, KEY_F10, 1);
 				input_sync(ts->input_dev);
 
