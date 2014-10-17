@@ -300,8 +300,8 @@
 		reg = <0xfe8050c8 0xc8>;
 		qcom,android-usb-swfi-latency = <1>;
 		qcom,streaming-func = "rndis";
- 		qcom,android-usb-cdrom;
-		qcom,android-usb-external-ums;
+		qcom,android-usb-internal-ums;
+                qcom,android-usb-external-ums;
 		qcom,android-usb-uicc-nluns = <0>;
 	};
 

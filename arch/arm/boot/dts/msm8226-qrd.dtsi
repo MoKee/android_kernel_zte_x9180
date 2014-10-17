@@ -496,8 +496,8 @@
 };
 
 &android_usb {
-	qcom,android-usb-cdrom;
 	qcom,android-usb-internal-ums;
+        qcom,android-usb-external-ums;
 };
 
 &mdss_mdp {
