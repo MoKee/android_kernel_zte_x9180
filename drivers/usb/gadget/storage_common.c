@@ -809,6 +809,14 @@ static ssize_t fsg_show_cdrom (struct device *dev, struct device_attribute *attr
 	return sprintf(buf, "%d\n", curlun->cdrom);
 }
 
+static ssize_t fsg_show_removable (struct device *dev, struct device_attribute *attr,
+			   char *buf)
+{
+	struct fsg_lun  *curlun = fsg_lun_from_dev(dev);
+
+	return sprintf(buf, "%d\n", curlun->removable);
+}
+
 #ifdef CONFIG_USB_MSC_PROFILING
 static ssize_t fsg_show_perf(struct device *dev, struct device_attribute *attr,
 			      char *buf)
@@ -988,6 +996,35 @@ static ssize_t fsg_store_cdrom(struct device *dev, struct device_attribute *attr
 	} else {
 		curlun->cdrom = cdrom;
 		LDBG(curlun, "cdrom status set to %d\n", curlun->cdrom);
+		rc = count;
+	}
+	up_read(filesem);
+	return rc;
+}
+
+static ssize_t fsg_store_removable(struct device *dev, struct device_attribute *attr,
+				  const char *buf, size_t count)
+{
+	ssize_t    rc;
+	struct fsg_lun  *curlun = fsg_lun_from_dev(dev);
+	struct rw_semaphore  *filesem = dev_get_drvdata(dev);
+	unsigned  removable;
+
+	rc = kstrtouint(buf, 2, &removable);
+	if (rc)
+		return rc;
+
+	/*
+	 * Allow the removable status to change only while the
+	 * backing file is closed.
+	 */
+	down_read(filesem);
+	if (fsg_lun_is_open(curlun)) {
+		LDBG(curlun, "removable status change prevented\n");
+		rc = -EBUSY;
+	} else {
+		curlun->removable = removable;
+		LDBG(curlun, "removable status set to %d\n", curlun->removable);
 		rc = count;
 	}
 	up_read(filesem);
