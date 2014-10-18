@@ -94,6 +94,7 @@ static s8 gtp_i2c_test(struct i2c_client *client);
 void gtp_reset_guitar(struct i2c_client *client, s32 ms);
 s32 gtp_send_cfg(struct i2c_client *client);
 void gtp_int_sync(s32 ms);
+static void goodix_ts_disable_doze(struct goodix_ts_data * ts);
 
 static ssize_t gt91xx_config_read_proc(struct file *, char __user *, size_t, loff_t *);
 static ssize_t gt91xx_config_write_proc(struct file *, const char __user *, size_t, loff_t *);
@@ -668,6 +669,18 @@ static ssize_t ztemt_wakeup_gesture_store(struct device *dev,
 	return size;
 }
 
+static void goodix_ts_disable_doze(struct goodix_ts_data * ts) {
+#if GTP_GESTURE_WAKEUP
+    u8 doze_buf[3] = {0x81, 0x4B, 0x00};
+    if (ts->wakeup_gesture == 1 && DOZE_ENABLED == doze_status)	//add by luochangyang 2014/04/30
+    {
+	doze_status = DOZE_WAKEUP;
+        // clear 0x814B
+        gtp_i2c_write(i2c_connect_client, doze_buf, 3);
+    }
+#endif
+}
+
 static DEVICE_ATTR(wakeup_gesture, 0664, ztemt_wakeup_gesture_show, ztemt_wakeup_gesture_store);
 /*luochangyang END*/
 
@@ -746,35 +759,34 @@ static void goodix_ts_work_func(struct work_struct *work)
                 {
                     GTP_INFO("Wakeup by gesture(^), light up the screen!");
                 }
-                doze_status = DOZE_WAKEUP;
+//                doze_status = DOZE_WAKEUP;
                 input_report_key(ts->input_dev, KEY_POWER, 1);
                 input_sync(ts->input_dev);
                 input_report_key(ts->input_dev, KEY_POWER, 0);
                 input_sync(ts->input_dev);
                 // clear 0x814B
-                doze_buf[2] = 0x00;
-                gtp_i2c_write(i2c_connect_client, doze_buf, 3);
-			}
-			else if ( (doze_buf[2] == 0xAA) || (doze_buf[2] == 0xBB) ||
-				(doze_buf[2] == 0xAB) || (doze_buf[2] == 0xBA) )
+//                doze_buf[2] = 0x00;
+//                gtp_i2c_write(i2c_connect_client, doze_buf, 3);
+	    } else if ( (doze_buf[2] == 0xAA) || (doze_buf[2] == 0xBB) ||
+			(doze_buf[2] == 0xAB) || (doze_buf[2] == 0xBA) )
             {
                 char *direction[4] = {"Right", "Down", "Up", "Left"};
                 u8 type = ((doze_buf[2] & 0x0F) - 0x0A) + (((doze_buf[2] >> 4) & 0x0F) - 0x0A) * 2;
                 
                 GTP_INFO("%s slide to light up the screen!", direction[type]);
-                doze_status = DOZE_WAKEUP;
+//                doze_status = DOZE_WAKEUP;
                 input_report_key(ts->input_dev, KEY_POWER, 1);
                 input_sync(ts->input_dev);
                 input_report_key(ts->input_dev, KEY_POWER, 0);
                 input_sync(ts->input_dev);
                 // clear 0x814B
-                doze_buf[2] = 0x00;
-                gtp_i2c_write(i2c_connect_client, doze_buf, 3);
+//                doze_buf[2] = 0x00;
+//                gtp_i2c_write(i2c_connect_client, doze_buf, 3);
             }
             else if (0xCC == doze_buf[2])
             {
                 GTP_INFO("Double click to light up the screen!");
-                doze_status = DOZE_WAKEUP;
+//                doze_status = DOZE_WAKEUP;
 #if 0
 				input_report_key(ts->input_dev, KEY_F10, 1);
 				input_sync(ts->input_dev);
@@ -788,8 +800,8 @@ static void goodix_ts_work_func(struct work_struct *work)
                 input_sync(ts->input_dev);
 #endif				
                 // clear 0x814B
-                doze_buf[2] = 0x00;
-                gtp_i2c_write(i2c_connect_client, doze_buf, 3);
+//                doze_buf[2] = 0x00;
+//                gtp_i2c_write(i2c_connect_client, doze_buf, 3);
             }
             else
             {
@@ -1473,6 +1485,7 @@ static s8 gtp_wakeup_sleep(struct goodix_ts_data * ts)
         {
             GTP_INFO("Gesture wakeup.");
         }
+	goodix_ts_disable_doze(ts);
         doze_status = DOZE_DISABLED;
 		if (ts->enter_update == 0) {	//if not this, FW update would fail	add by luochangyang 2014/04/30
 	        gtp_irq_disable(ts);
