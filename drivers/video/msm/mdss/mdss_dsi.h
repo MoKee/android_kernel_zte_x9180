@@ -244,6 +244,9 @@ enum {
 
 struct mdss_dsi_ctrl_pdata {
 	int ndx;	/* panel_num */
+#if defined(CONFIG_ZTEMT_NE501_LCD) || defined(CONFIG_ZTEMT_NX404H_LCD)
+	char *panel_name;
+#endif
 	int (*on) (struct mdss_panel_data *pdata);
 	int (*off) (struct mdss_panel_data *pdata);
 	int (*partial_update_fnc) (struct mdss_panel_data *pdata);
@@ -271,6 +274,14 @@ struct mdss_dsi_ctrl_pdata {
 	int irq_cnt;
 	int rst_gpio;
 	int disp_en_gpio;
+#ifdef CONFIG_ZTEMT_LCD_POWER_CONTRL
+/*avdd neg ctl board2 add ,mayu 6.25*/
+  int avdd_neg_en_gpio;
+#endif
+#ifdef CONFIG_ZTEMT_LCD_ESD_TE_CHECK
+/*esd check faild check,mayu add*/
+  int lcd_te_irq;
+#endif
 	int disp_te_gpio;
 	int mode_gpio;
 	int disp_te_gpio_requested;
@@ -291,7 +302,13 @@ struct mdss_dsi_ctrl_pdata {
 	struct mdss_panel_recovery *recovery;
 
 	struct dsi_panel_cmds on_cmds;
+#ifdef CONFIG_ZTEMT_NX404H_LCD
+	struct dsi_panel_cmds on_cmds_post;
+#endif
 	struct dsi_panel_cmds off_cmds;
+#if defined(CONFIG_ZTEMT_NE501_LCD)
+	struct dsi_panel_cmds on_cmds_esd;
+#endif	
 	struct dsi_panel_cmds status_cmds;
 	u32 status_value;
 

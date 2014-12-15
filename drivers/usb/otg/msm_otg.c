@@ -73,12 +73,24 @@
 
 #define USB_SUSPEND_DELAY_TIME	(500 * HZ/1000) /* 500 msec */
 
+#ifdef CONFIG_ZTEMT_CHARGE
+#define zte_dev_dbg(dev, format, ...)		     \
+dev_printk(KERN_DEBUG, dev, format, ##__VA_ARGS__)
+#undef dev_dbg
+#define dev_dbg   zte_dev_dbg
+#endif
+
+
 enum msm_otg_phy_reg_mode {
 	USB_PHY_REG_OFF,
 	USB_PHY_REG_ON,
 	USB_PHY_REG_LPM_ON,
 	USB_PHY_REG_LPM_OFF,
 };
+
+#ifdef CONFIG_ZTEMT_CHARGE
+extern int qpnp_chg_is_chg_plugged_in(void);
+#endif
 
 static char *override_phy_init;
 module_param(override_phy_init, charp, S_IRUGO|S_IWUSR);
@@ -3363,6 +3375,12 @@ static void msm_otg_set_vbus_state(int online)
 	static bool init;
 	struct msm_otg *motg = the_msm_otg;
 
+	#ifdef CONFIG_ZTEMT_CHARGE
+    if(online){
+		msm_otg_notify_charger(motg, 500);
+    }
+	#endif
+
 	if (online) {
 		pr_debug("PMIC: BSV set\n");
 		set_bit(B_SESS_VLD, &motg->inputs);
@@ -3746,10 +3764,17 @@ static int otg_power_get_property_usb(struct power_supply *psy,
 		val->intval = motg->current_max;
 		break;
 	/* Reflect USB enumeration */
+	#ifdef CONFIG_ZTEMT_CHARGE
+		case POWER_SUPPLY_PROP_PRESENT:
+  	case POWER_SUPPLY_PROP_ONLINE:
+  		val->intval = qpnp_chg_is_chg_plugged_in();
+		break;
+	#else
 	case POWER_SUPPLY_PROP_PRESENT:
 	case POWER_SUPPLY_PROP_ONLINE:
 		val->intval = motg->online;
 		break;
+	#endif	
 	case POWER_SUPPLY_PROP_TYPE:
 		val->intval = psy->type;
 		break;

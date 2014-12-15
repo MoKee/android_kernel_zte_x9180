@@ -2344,7 +2344,13 @@ static int tapan_codec_enable_micbias(struct snd_soc_dapm_widget *w,
 		wcd9xxx_resmgr_cfilt_get(&tapan->resmgr, cfilt_sel_val);
 
 		if (strnstr(w->name, internal1_text, 30))
+                {
+                #if defined(CONFIG_ZTEMT_AUDIO)
+			snd_soc_update_bits(codec, micb_int_reg, 0xE0, 0x00);
+                #else
 			snd_soc_update_bits(codec, micb_int_reg, 0xE0, 0xE0);
+                #endif
+                }
 		else if (strnstr(w->name, internal2_text, 30))
 			snd_soc_update_bits(codec, micb_int_reg, 0x1C, 0x1C);
 		else if (strnstr(w->name, internal3_text, 30))
@@ -5307,8 +5313,13 @@ static int tapan_handle_pdata(struct tapan_priv *tapan)
 	}
 
 	/* Set micbias capless mode with tail current */
+        #if defined(CONFIG_ZTEMT_AUDIO)
+	value = (pdata->micbias.bias1_cap_mode == MICBIAS_EXT_BYP_CAP ?
+		 0x10 : 0x10);
+        #else
 	value = (pdata->micbias.bias1_cap_mode == MICBIAS_EXT_BYP_CAP ?
 		 0x00 : 0x10);
+        #endif
 	snd_soc_update_bits(codec, TAPAN_A_MICB_1_CTL, 0x10, value);
 	value = (pdata->micbias.bias2_cap_mode == MICBIAS_EXT_BYP_CAP ?
 		 0x00 : 0x10);

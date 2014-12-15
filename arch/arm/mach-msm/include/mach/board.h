@@ -208,6 +208,9 @@ struct msm_camera_gpio_conf {
 	uint32_t *camera_on_table;
 	uint8_t camera_on_table_size;
 	struct msm_camera_gpio_num_info *gpio_num_info;
+#ifdef CONFIG_ZTEMT_CAMERA
+	uint32_t camera_avdd_enable_gpio;  //tanyijun add 
+#endif
 };
 
 enum msm_camera_i2c_mux_mode {

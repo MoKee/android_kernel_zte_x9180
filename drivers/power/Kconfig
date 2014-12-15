@@ -13,7 +13,11 @@ config POWER_SUPPLY_DEBUG
 	help
 	  Say Y here to enable debugging messages for power supply class
 	  and drivers.
-
+config ZTEMT_POWER_DEBUG
+	bool "ZTEMT Power Debug Feature"
+	default y
+	help
+	  ZTEMT Power Debug Feature
 config PDA_POWER
 	tristate "Generic PDA/phone power driver"
 	depends on !S390
@@ -485,6 +489,24 @@ config CHARGER_SMB347
 	  Say Y to include support for Summit Microelectronics SMB347
 	  Battery Charger.
 
+config ZTEMT_CHARGE
+	bool "ZTEMT Charge Feature"
+	default y
+	help
+	  ZTEMT Charge Feature
+
+config ZTEMT_2000AMH_BATTERY
+	bool "ZTEMT 2000AMH BATTERY"
+	default n
+	help
+	  ZTEMT 2000AMH Battery Feature
+	  
+config ZTEMT_2400AMH_BATTERY
+	bool "ZTEMT 2400AMH BATTERY"
+	default n
+	help
+	  ZTEMT 2400AMH Battery Feature
+	  
 config AB8500_BM
 	bool "AB8500 Battery Management Driver"
 	depends on AB8500_CORE && AB8500_GPADC
@@ -506,4 +528,39 @@ config QPNP_BMS
 	  Say Y here to enable support for QPNP chip bms device.
 	  It registers a fuelgauge bms power supply to report
 	  State of Charge.
+#ztemt add by ttwang for hw version 2014/03/21
+config ZTEMT_HW_VERSION
+	bool "ZTEMT HW VERSION"
+	default n
+	help
+	  ZTEMT HW VERSION
+	
+config ZTEMT_HW_VERSION_GPIO
+	bool "ZTEMT HW VERSION GPIO"
+	default n
+	depends on ZTEMT_HW_VERSION
+	help
+	  ZTEMT HW VERSION GPIO
+
+config ZTEMT_HW_VERSION_ADC
+	bool "ZTEMT HW VERSION ADC"
+	default n
+	depends on ZTEMT_HW_VERSION
+	help
+	  ZTEMT HW VERSION ADC
+	  
+config ZTEMT_HW_VERSION_NX601J
+	bool "ZTEMT HW VERSION NX601J"
+	depends on ZTEMT_HW_VERSION_ADC
+	default n
+	help
+	  ZTEMT HW VERSION NX601J	  
+
+config ZTEMT_HW_VERSION_NX504J
+	bool "ZTEMT HW VERSION NX504J"
+	depends on ZTEMT_HW_VERSION_ADC
+	default n
+	help
+	  ZTEMT HW VERSION NX504J
+#ztemt end	  
 endif # POWER_SUPPLY

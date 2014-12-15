@@ -133,6 +133,31 @@ obj-$(CONFIG_SENSORS_EPM_ADC)	+= epm_adc.o
 obj-$(CONFIG_SENSORS_QPNP_ADC_VOLTAGE)	+= qpnp-adc-voltage.o qpnp-adc-common.o
 obj-$(CONFIG_SENSORS_QPNP_ADC_CURRENT)	+= qpnp-adc-current.o qpnp-adc-common.o
 
+################################################# SENROS START
+		
+################################################# ALS_PS START
+obj-$(CONFIG_ZTEMT_SENSORS_ALS_PS_AUTO_DETECT) += als_prox.o tmg399x.o tmd2772_ne501j.o tmd2772_nx404h.o
+obj-$(CONFIG_ZTEMT_SENSORS_ALS_PS_TMG3993) += tmg399x.o
+obj-$(CONFIG_ZTEMT_SENSORS_ALS_PS_TMD2772) += tmd2772.o
+obj-$(CONFIG_ZTEMT_SENSORS_ALS_PS_TMD2772_NE501J) += tmd2772_ne501j.o
+obj-$(CONFIG_ZTEMT_SENSORS_ALS_PS_TMD2772_NX404H) += tmd2772_nx404h.o
+################################################# ALS_PS END
+
+################################################# TEMP_HUMI START
+obj-$(CONFIG_ZTEMT_SENSORS_TEMP_HUMI)      += shtc1.o
+################################################# TEMP_HUMI END
+
+################################################# TEMP_HUMI START
+obj-$(CONFIG_ZTEMT_SENSORS_COMMON)      += sensor_common.o
+################################################# TEMP_HUMI END
+
+
+################################################# IR_REMOTE START
+obj-$(CONFIG_ZTEMT_SENSORS_IR_REMOTE_MAXQ616)      += maxq616.o
+################################################# IR_REMOTE END
+#ZTEMT ADD by wangshuai
+obj-$(CONFIG_ZTEMT_LIQUID_LED)      += aw_9106b.o
+#ZTEMT END
 obj-$(CONFIG_PMBUS)		+= pmbus/
 
 ccflags-$(CONFIG_HWMON_DEBUG_CHIP) := -DDEBUG

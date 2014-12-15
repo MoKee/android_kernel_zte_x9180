@@ -19,6 +19,9 @@
 #include "mdss_dsi.h"
 #include "mdp3_ctrl.h"
 
+#ifdef CONFIG_ZTEMT_NE501_LCD
+extern int mipi_lcd_esd_command(struct mdss_dsi_ctrl_pdata *ctrl_pdata);
+#endif
 /*
  * mdp3_check_dsi_ctrl_status() - Check MDP3 DSI controller status periodically.
  * @work     : dsi controller status data
@@ -87,6 +90,18 @@ void mdp3_check_dsi_ctrl_status(struct work_struct *work,
 			schedule_delayed_work(&pdsi_status->check_status,
 						msecs_to_jiffies(interval));
 		} else {
+#ifdef CONFIG_ZTEMT_NE501_LCD
+			if (mipi_lcd_esd_command(ctrl_pdata)) {
+				char *envp[2] = {"PANEL_ALIVE=0", NULL};
+				pdata->panel_info.panel_dead = true;
+				ret = kobject_uevent_env(
+					&pdsi_status->mfd->fbi->dev->kobj,
+								KOBJ_CHANGE, envp);
+				pr_err("%s: Panel has gone bad, sending uevent - %s\n",
+								__func__, envp[0]);
+				printk("default reset panel\n");
+			}
+#else
 			char *envp[2] = {"PANEL_ALIVE=0", NULL};
 			pdata->panel_info.panel_dead = true;
 			ret = kobject_uevent_env(
@@ -94,6 +109,7 @@ void mdp3_check_dsi_ctrl_status(struct work_struct *work,
 					KOBJ_CHANGE, envp);
 			pr_err("%s: Panel has gone bad, sending uevent - %s\n",
 							__func__, envp[0]);
+#endif
 		}
 	}
 }

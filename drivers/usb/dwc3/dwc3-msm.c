@@ -74,7 +74,16 @@ module_param(ss_phy_override_deemphasis, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(ss_phy_override_deemphasis, "Override SSPHY demphasis value");
 
 /* Enable Proprietary charger detection */
+#ifdef CONFIG_ZTEMT_CHARGE
+static bool prop_chg_detect = 1;
+#else
 static bool prop_chg_detect;
+#endif
+
+#ifdef CONFIG_ZTEMT_CHARGE
+extern int qpnp_chg_is_chg_plugged_in(void);
+#endif
+
 module_param(prop_chg_detect, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(prop_chg_detect, "Enable Proprietary charger detection");
 
@@ -2354,12 +2363,19 @@ static int dwc3_msm_power_get_property_usb(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CURRENT_MAX:
 		val->intval = mdwc->current_max;
 		break;
+	#ifdef CONFIG_ZTEMT_CHARGE
+		case POWER_SUPPLY_PROP_PRESENT:
+  	case POWER_SUPPLY_PROP_ONLINE:
+  		val->intval = qpnp_chg_is_chg_plugged_in();
+		break;
+	#else
 	case POWER_SUPPLY_PROP_PRESENT:
 		val->intval = mdwc->vbus_active;
 		break;
 	case POWER_SUPPLY_PROP_ONLINE:
 		val->intval = mdwc->online;
 		break;
+	#endif
 	case POWER_SUPPLY_PROP_TYPE:
 		val->intval = psy->type;
 		break;

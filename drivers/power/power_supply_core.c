@@ -103,6 +103,20 @@ int power_supply_set_present(struct power_supply *psy, bool enable)
 }
 EXPORT_SYMBOL_GPL(power_supply_set_present);
 
+#ifdef CONFIG_ZTEMT_CHARGE
+int power_supply_set_charger_online(struct power_supply *psy, bool enable)
+{
+	const union power_supply_propval ret = {enable,};
+
+	if (psy->set_property)
+		return psy->set_property(psy, POWER_SUPPLY_PROP_CHARGER_ONLINE,
+								&ret);
+
+	return -ENXIO;
+}
+EXPORT_SYMBOL_GPL(power_supply_set_charger_online);
+#endif
+
 /**
  * power_supply_set_online - set online state of the power supply
  * @psy:	the power supply to control

@@ -24,6 +24,10 @@
 #include "io.h"
 #include "xhci.h"
 
+#ifdef CONFIG_ZTEMT_CHARGE
+#include <linux/qpnp/qpnp-adc.h>
+#endif
+
 #define VBUS_REG_CHECK_DELAY	(msecs_to_jiffies(1000))
 #define MAX_INVALID_CHRGR_RETRY 3
 static int max_chgr_retry_count = MAX_INVALID_CHRGR_RETRY;
@@ -393,6 +397,10 @@ static void dwc3_ext_chg_det_done(struct usb_otg *otg, struct dwc3_charger *chg)
 {
 	struct dwc3_otg *dotg = container_of(otg, struct dwc3_otg, otg);
 
+#ifdef CONFIG_ZTEMT_CHARGE
+	 qpnp_notify_charger_of_the_charger_type((int)chg->chg_type);
+#endif
+
 	/*
 	 * Ignore chg_detection notification if BSV has gone off by this time.
 	 * STOP chg_det as part of !BSV handling would reset the chg_det flags
@@ -549,6 +557,9 @@ static int dwc3_otg_set_power(struct usb_phy *phy, unsigned mA)
 	else if (dotg->charger->chg_type == DWC3_CDP_CHARGER)
 		power_supply_type = POWER_SUPPLY_TYPE_USB_CDP;
 	else if (dotg->charger->chg_type == DWC3_DCP_CHARGER ||
+						#ifdef CONFIG_ZTEMT_CHARGE
+	          dotg->charger->chg_type == DWC3_FLOATED_CHARGER ||
+        		#endif
 			dotg->charger->chg_type == DWC3_PROPRIETARY_CHARGER)
 		power_supply_type = POWER_SUPPLY_TYPE_USB_DCP;
 	else
@@ -782,6 +793,12 @@ static void dwc3_otg_sm_work(struct work_struct *w)
 					work = 1;
 					break;
 				case DWC3_FLOATED_CHARGER:
+				#ifdef CONFIG_ZTEMT_CHARGE
+					dev_dbg(phy->dev, "lpm, FLOATED charger\n");
+					dwc3_otg_set_power(phy,
+							DWC3_IDEV_CHG_MAX);
+					pm_runtime_put_sync(phy->dev);		
+				#else									
 					if (dotg->charger_retry_count <
 							max_chgr_retry_count)
 						dotg->charger_retry_count++;
@@ -802,6 +819,7 @@ static void dwc3_otg_sm_work(struct work_struct *w)
 					}
 					charger->start_detection(dotg->charger,
 									false);
+     #endif
 
 				default:
 					dev_dbg(phy->dev, "chg_det started\n");

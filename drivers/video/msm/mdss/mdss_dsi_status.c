@@ -30,7 +30,12 @@
 #include "mdss_panel.h"
 #include "mdss_mdp.h"
 
+#ifdef CONFIG_ZTEMT_LCD_ESD_TE_CHECK
+#define STATUS_CHECK_INTERVAL_MS 2000
+#else
 #define STATUS_CHECK_INTERVAL_MS 5000
+#endif
+
 #define STATUS_CHECK_INTERVAL_MIN_MS 200
 #define DSI_STATUS_CHECK_DISABLE 0
 
@@ -38,6 +43,9 @@ static uint32_t interval = STATUS_CHECK_INTERVAL_MS;
 static uint32_t dsi_status_disable = DSI_STATUS_CHECK_DISABLE;
 struct dsi_status_data *pstatus_data;
 
+#ifdef CONFIG_ZTEMT_NE501_LCD
+extern int mipi_lcd_esd_command(struct mdss_dsi_ctrl_pdata *ctrl_pdata);
+#endif
 /*
  * check_dsi_ctrl_status() - Reads MFD structure and
  * calls platform specific DSI ctrl Status function.

@@ -59,6 +59,16 @@ config SOUND_OSS_CORE_PRECLAIM
 
 source "sound/oss/dmasound/Kconfig"
 
+config ZTEMT_AUDIO_NX404H
+       bool "AUDIO MACRO for ZTEMT NX404H"
+       default n
+       help 
+              AUDIO MACRO for ZTEMT NX404H
+config ZTEMT_AUDIO
+       bool "AUDIO MACRO for ZTEMT"
+       default n
+       help 
+              AUDIO MACRO for ZTEMT
 if !M68K && !UML
 
 menuconfig SND

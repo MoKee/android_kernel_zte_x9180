@@ -24,7 +24,29 @@
 
 #include "mdss_dsi.h"
 
+#ifdef CONFIG_ZTEMT_LCD_DISP_ENHANCE
+extern struct mdss_dsi_ctrl_pdata *zte_mdss_dsi_ctrl;
+#endif
+#if defined(CONFIG_ZTEMT_NX404H_LCD) || defined(CONFIG_ZTEMT_NE501_LCD)
+struct mdss_dsi_ctrl_pdata *zte_ctrl_post;
+#endif
+
 #define DT_CMD_HDR 6
+
+#ifdef CONFIG_ZTEMT_MIPI_720P_R69431_SHARP_IPS_4P7
+/*NX404 mayu*/
+#define PW_ON_AVDD_EN_SLEEP   2
+#define PW_ON_AVDD_NEG_SLEEP  6
+
+#define PW_OFF_AVDD_NEG_SLEEP 10
+#define PW_OFF_AVDD_EN_SLEEP  10
+#define PW_OFF_RESET_SLEEP    5
+#endif
+
+#ifdef CONFIG_ZTEMT_MIPI_720P_NT35592_SHARP_IPS_5P
+/*NE501 mayu*/
+#define PW_OFF_RESET_SLEEP    11
+#endif
 
 DEFINE_LED_TRIGGER(bl_led_trigger);
 
@@ -149,13 +171,16 @@ static struct dsi_cmd_desc backlight_cmd = {
 	led_pwm1
 };
 
+#ifdef CONFIG_ZTEMT_LCD_BACKLIGHT_LINEAR_CONTROL_METHOLD
 static void mdss_dsi_panel_bklt_dcs(struct mdss_dsi_ctrl_pdata *ctrl, int level)
 {
 	struct dcs_cmd_req cmdreq;
+    pr_debug("%s: level = %d\n", __func__, level);
 
-	pr_debug("%s: level=%d\n", __func__, level);
 
-	led_pwm1[1] = (unsigned char)level;
+            led_pwm1[1] = level & 0xff;
+ 
+	pr_err("\n%s: ---------------level=%d. after\n", __func__, led_pwm1[1]);
 
 	memset(&cmdreq, 0, sizeof(cmdreq));
 	cmdreq.cmds = &backlight_cmd;
@@ -166,6 +191,31 @@ static void mdss_dsi_panel_bklt_dcs(struct mdss_dsi_ctrl_pdata *ctrl, int level)
 
 	mdss_dsi_cmdlist_put(ctrl, &cmdreq);
 }
+#else
+static void mdss_dsi_panel_bklt_dcs(struct mdss_dsi_ctrl_pdata *ctrl, int level)
+{
+	struct dcs_cmd_req cmdreq;
+
+	//pr_err("%s: level=%d\n", __func__, level);
+
+	led_pwm1[1] = (unsigned char)level;
+	
+	if (led_pwm1[1] <= 0) led_pwm1[1] = 0;
+	else if (led_pwm1[1] <= 185) led_pwm1[1] = 10 + led_pwm1[1] *176/186 ;
+	//else led_pwm1[1] = 185 + (led_pwm1[1] - 185 ) /2 ; a maximum limit backlight in 420 nit  for htian
+		
+	pr_err("\n%s: ---------------level=%d. after\n", __func__, led_pwm1[1]);
+	
+	memset(&cmdreq, 0, sizeof(cmdreq));
+	cmdreq.cmds = &backlight_cmd;
+	cmdreq.cmds_cnt = 1;
+	cmdreq.flags = CMD_REQ_COMMIT | CMD_CLK_CTRL;
+	cmdreq.rlen = 0;
+	cmdreq.cb = NULL;
+
+	mdss_dsi_cmdlist_put(ctrl, &cmdreq);
+}
+#endif
 
 static int mdss_dsi_request_gpios(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 {
@@ -242,12 +292,22 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 		if (!pinfo->panel_power_on) {
 			if (gpio_is_valid(ctrl_pdata->disp_en_gpio))
 				gpio_set_value((ctrl_pdata->disp_en_gpio), 1);
-
+#ifdef CONFIG_ZTEMT_LCD_POWER_CONTRL
+/*mayu add ,12.19*/
+			mdelay(PW_ON_AVDD_EN_SLEEP);
+				if (gpio_is_valid(ctrl_pdata->avdd_neg_en_gpio))
+					gpio_set_value((ctrl_pdata->avdd_neg_en_gpio), 1);
+			mdelay(PW_ON_AVDD_NEG_SLEEP);
+#endif
 			for (i = 0; i < pdata->panel_info.rst_seq_len; ++i) {
 				gpio_set_value((ctrl_pdata->rst_gpio),
 					pdata->panel_info.rst_seq[i]);
 				if (pdata->panel_info.rst_seq[++i])
-					usleep(pinfo->rst_seq[i] * 1000);
+#ifdef CONFIG_ZTEMT_NE501_LCD
+					udelay(pinfo->rst_seq[i]);
+#else
+ 					usleep(pinfo->rst_seq[i] * 1000);
+#endif
 			}
 		}
 
@@ -264,6 +324,22 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 			pr_debug("%s: Reset panel done\n", __func__);
 		}
 	} else {
+#ifdef CONFIG_ZTEMT_LCD_POWER_CONTRL
+		if (gpio_is_valid(ctrl_pdata->avdd_neg_en_gpio))
+			gpio_set_value((ctrl_pdata->avdd_neg_en_gpio), 0);
+
+		mdelay(PW_OFF_AVDD_NEG_SLEEP);
+		if (gpio_is_valid(ctrl_pdata->disp_en_gpio)) {
+			gpio_set_value((ctrl_pdata->disp_en_gpio), 0);
+			gpio_free(ctrl_pdata->disp_en_gpio);
+		}
+		mdelay(PW_OFF_AVDD_NEG_SLEEP);
+		gpio_set_value((ctrl_pdata->rst_gpio), 0);
+		gpio_free(ctrl_pdata->rst_gpio);
+		mdelay(PW_OFF_RESET_SLEEP);
+		if (gpio_is_valid(ctrl_pdata->mode_gpio))
+			gpio_free(ctrl_pdata->mode_gpio);
+#else
 		if (gpio_is_valid(ctrl_pdata->disp_en_gpio)) {
 			gpio_set_value((ctrl_pdata->disp_en_gpio), 0);
 			gpio_free(ctrl_pdata->disp_en_gpio);
@@ -272,6 +348,7 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 		gpio_free(ctrl_pdata->rst_gpio);
 		if (gpio_is_valid(ctrl_pdata->mode_gpio))
 			gpio_free(ctrl_pdata->mode_gpio);
+#endif
 	}
 	return rc;
 }
@@ -424,14 +501,56 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 				panel_data);
 	mipi  = &pdata->panel_info.mipi;
 
+#if defined(CONFIG_ZTEMT_NX404H_LCD) || defined(CONFIG_ZTEMT_NE501_LCD)
+	zte_ctrl_post = ctrl;
+#endif
+
+	printk("lcd:%s \n",__func__);
 	pr_debug("%s: ctrl=%p ndx=%d\n", __func__, ctrl, ctrl->ndx);
 
 	if (ctrl->on_cmds.cmd_cnt)
 		mdss_dsi_panel_cmds_send(ctrl, &ctrl->on_cmds);
 
+#ifdef CONFIG_ZTEMT_LCD_DISP_ENHANCE
+/*disp color enhance,mayu add*/
+	zte_mdss_dsi_ctrl = ctrl;
+#endif
+
 	pr_debug("%s:-\n", __func__);
 	return 0;
 }
+#ifdef CONFIG_ZTEMT_NX404H_LCD
+int mipi_lcd_on_post(void)
+{
+	static bool is_firsttime = true;
+	if (is_firsttime) {
+		is_firsttime = false;
+		return 0;
+	}
+
+	if (zte_ctrl_post && zte_ctrl_post->on_cmds_post.cmd_cnt) {
+		mdss_dsi_panel_cmds_send(zte_ctrl_post, &zte_ctrl_post->on_cmds_post);
+	}
+
+	 return 0;
+}
+#endif
+
+#ifdef CONFIG_ZTEMT_NE501_LCD
+int mipi_lcd_esd_command(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
+{
+	if (ctrl_pdata 
+		&& (ctrl_pdata->panel_name 
+			&& !strcmp(ctrl_pdata->panel_name, "success hx8392b 720p video mode dsi panel"))
+		&& ctrl_pdata->on_cmds_esd.cmd_cnt) {
+		mdss_dsi_panel_cmds_send(ctrl_pdata, &ctrl_pdata->on_cmds_esd);
+		printk("sleep exit & display on reset panel\n");
+		return 0;
+	}
+	
+	return 1;
+}
+#endif
 
 static int mdss_dsi_panel_off(struct mdss_panel_data *pdata)
 {
@@ -447,11 +566,17 @@ static int mdss_dsi_panel_off(struct mdss_panel_data *pdata)
 				panel_data);
 
 	pr_debug("%s: ctrl=%p ndx=%d\n", __func__, ctrl, ctrl->ndx);
+	printk("lcd:%s \n",__func__);
 
 	mipi  = &pdata->panel_info.mipi;
 
 	if (ctrl->off_cmds.cmd_cnt)
 		mdss_dsi_panel_cmds_send(ctrl, &ctrl->off_cmds);
+
+#ifdef CONFIG_ZTEMT_LCD_DISP_ENHANCE
+/*disp color enhance,mayu add*/
+	zte_mdss_dsi_ctrl = NULL;
+#endif
 
 	pr_debug("%s:-\n", __func__);
 	return 0;
@@ -1010,6 +1135,22 @@ static int mdss_panel_parse_dt(struct device_node *np,
 	rc = of_property_read_u32(np, "qcom,mdss-dsi-bl-max-level", &tmp);
 	pinfo->bl_max = (!rc ? tmp : 255);
 	ctrl_pdata->bklt_max = pinfo->bl_max;
+    #ifdef CONFIG_ZTEMT_LCD_BACKLIGHT_LINEAR_CONTROL_METHOLD
+	rc = of_property_read_u32(np, "qcom,mdss-dsi-bright-to-bl-lvl-para-a1", &tmp);
+	pinfo->brig_to_bl_lvl_para_a1 = (!rc ? tmp : 0);
+
+    rc = of_property_read_u32(np, "qcom,mdss-dsi-bright-to-bl-lvl-para-a2", &tmp);
+	pinfo->brig_to_bl_lvl_para_a2 = (!rc ? tmp : 0);
+
+	rc = of_property_read_u32(np, "qcom,mdss-dsi-bright-to-bl-lvl-para-b1", &tmp);
+	pinfo->brig_to_bl_lvl_para_b1 = (!rc ? tmp : 0);
+
+	rc = of_property_read_u32(np, "qcom,mdss-dsi-bright-to-bl-lvl-para-b2", &tmp);
+	pinfo->brig_to_bl_lvl_para_b2 = (!rc ? tmp : 0);
+
+	rc = of_property_read_u32(np, "qcom,mdss-dsi-bright-to-bl-lvl-turn-point", &tmp);
+	pinfo->brig_to_bl_lvl_turn_point = (!rc ? tmp : 0);
+    #endif
 
 	rc = of_property_read_u32(np, "qcom,mdss-dsi-interleave-mode", &tmp);
 	pinfo->mipi.interleave_mode = (!rc ? tmp : 0);
@@ -1142,6 +1283,15 @@ static int mdss_panel_parse_dt(struct device_node *np,
 
 	mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->on_cmds,
 		"qcom,mdss-dsi-on-command", "qcom,mdss-dsi-on-command-state");
+#ifdef CONFIG_ZTEMT_NX404H_LCD
+	mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->on_cmds_post,
+		"qcom,mdss-dsi-on-command_post", "qcom,mdss-dsi-on-command-state");
+#endif
+
+#ifdef CONFIG_ZTEMT_NE501_LCD
+	mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->on_cmds_esd,
+		"qcom,mdss-dsi-esd-command", "qcom,mdss-dsi-on-command-state");
+#endif
 
 	mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->off_cmds,
 		"qcom,mdss-dsi-off-command", "qcom,mdss-dsi-off-command-state");
@@ -1197,6 +1347,15 @@ int mdss_dsi_panel_init(struct device_node *node,
 						__func__, __LINE__);
 	else
 		pr_info("%s: Panel Name = %s\n", __func__, panel_name);
+
+#if defined(CONFIG_ZTEMT_NE501_LCD) || defined(CONFIG_ZTEMT_NX404H_LCD)
+		if (panel_name) ctrl_pdata->panel_name = (char *)panel_name;
+#endif
+
+#ifdef CONFIG_ZTEMT_LCD_DISP_ENHANCE
+/*disp color enhance,tangjun add*/
+	zte_mdss_dsi_ctrl = ctrl_pdata;
+#endif
 
 	rc = mdss_panel_parse_dt(node, ctrl_pdata);
 	if (rc) {

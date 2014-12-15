@@ -278,7 +278,7 @@
 		qcom,vdd-voltage-level = <1 5 7>;
 
 		qcom,hsusb-otg-phy-init-seq =
-			<0x44 0x80 0x68 0x81 0x24 0x82 0x13 0x83 0xffffffff>;
+			<0x74 0x80 0x68 0x81 0x24 0x82 0x13 0x83 0xffffffff>;
 		qcom,hsusb-otg-phy-type = <2>;
 		qcom,hsusb-otg-mode = <1>;
 		qcom,hsusb-otg-otg-control = <2>;
@@ -300,7 +300,9 @@
 		reg = <0xfe8050c8 0xc8>;
 		qcom,android-usb-swfi-latency = <1>;
 		qcom,streaming-func = "rndis";
-		qcom,android-usb-uicc-nluns = <1>;
+ 		qcom,android-usb-cdrom;
+		qcom,android-usb-external-ums;
+		qcom,android-usb-uicc-nluns = <0>;
 	};
 
 	smsc_hub: hsic_hub {
@@ -985,7 +987,20 @@
 		qcom,pmic-arb-ee = <0>;
 		qcom,pmic-arb-channel = <0>;
 	};
-
+//+++ add ,2014.3.31,for sensor
+	i2c@f9923000 { /* BLSP-1 QUP-0 */
+		cell-index = <1>;
+		compatible = "qcom,i2c-qup";
+		reg = <0xf9923000 0x1000>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg-names = "qup_phys_addr";
+		interrupts = <0 95 0>;
+		interrupt-names = "qup_err_intr";
+		qcom,i2c-bus-freq = <400000>;
+		qcom,i2c-src-freq = <19200000>;
+	};
+//--- add end
 	i2c@f9925000 { /* BLSP-1 QUP-3 */
 		cell-index = <2>;
 		compatible = "qcom,i2c-qup";
