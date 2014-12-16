@@ -5008,8 +5008,8 @@ eHalStatus sme_GetStatistics(tHalHandle hHal, eCsrStatsRequesterType requesterId
 
 }
 
-eHalStatus sme_GetFwStats(tHalHandle hHal, tANI_U32 stats, void *data,
-                                                        void *callback)
+eHalStatus sme_GetFwStats(tHalHandle hHal, tANI_U32 stats,
+                            void *pContext, tSirFWStatsCallback callback)
 {
    tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
    vos_msg_t msg;
@@ -5029,7 +5029,7 @@ eHalStatus sme_GetFwStats(tHalHandle hHal, tANI_U32 stats, void *data,
        }
        pGetFWStatsReq->stats = stats;
        pGetFWStatsReq->callback = (tSirFWStatsCallback)callback;
-       pGetFWStatsReq->data = data;
+       pGetFWStatsReq->data = pContext;
 
        msg.type = WDA_FW_STATS_GET_REQ;
        msg.reserved = 0;
@@ -11976,6 +11976,39 @@ eHalStatus sme_Encryptmsgsend (tHalHandle hHal,
         if (!VOS_IS_STATUS_SUCCESS(vosStatus))
            status = eHAL_STATUS_FAILURE;
 
+        sme_ReleaseGlobalLock(&pMac->sme);
+    }
+    return(status);
+}
+
+/* ---------------------------------------------------------------------------
+    \fn sme_RegisterBtCoexTDLSCallback
+    \brief  Used to plug in callback function
+            Which notify btcoex on or off.
+            Notification come from FW.
+    \param  hHal
+    \param  pCallbackfn : callback function pointer should be plugged in
+    \- return eHalStatus
+    -------------------------------------------------------------------------*/
+eHalStatus sme_RegisterBtCoexTDLSCallback
+(
+   tHalHandle hHal,
+   void (*pCallbackfn)(void *pAdapter, int )
+)
+{
+    eHalStatus          status    = eHAL_STATUS_SUCCESS;
+    tpAniSirGlobal      pMac      = PMAC_STRUCT(hHal);
+
+    VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO,
+              "%s: Plug in BtCoex TDLS CB", __func__);
+
+    status = sme_AcquireGlobalLock(&pMac->sme);
+    if (eHAL_STATUS_SUCCESS == status)
+    {
+        if (NULL != pCallbackfn)
+        {
+           pMac->sme.pBtCoexTDLSNotification = pCallbackfn;
+        }
         sme_ReleaseGlobalLock(&pMac->sme);
     }
     return(status);

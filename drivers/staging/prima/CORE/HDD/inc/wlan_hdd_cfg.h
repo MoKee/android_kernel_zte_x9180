@@ -1886,6 +1886,18 @@ static __inline tANI_U32 defHddRateToDefCfgRate( tANI_U32 defRateIndex )
 #define CFG_TDLS_SCAN_COEX_SUPPORT_ENABLE_MIN        (0)
 #define CFG_TDLS_SCAN_COEX_SUPPORT_ENABLE_MAX        (1)
 #define CFG_TDLS_SCAN_COEX_SUPPORT_ENABLE_DEFAULT    (0)
+
+
+/* if gEnableTDLSScan
+ * 0: Same as gEnableTDLSScanCoexistence ; driver will do disconnect if
+ * Peer is not buffer STA capable.
+ * 1: Dut will scan in all cases.
+ * 2: If peer is not buffer STA capable, use CTS2self to do scan.
+*/
+#define CFG_TDLS_SCAN_ENABLE            "gEnableTDLSScan"
+#define CFG_TDLS_SCAN_ENABLE_MIN        (0)
+#define CFG_TDLS_SCAN_ENABLE_MAX        (2)
+#define CFG_TDLS_SCAN_ENABLE_DEFAULT    (0)
 #endif
 
 #ifdef WLAN_FEATURE_LINK_LAYER_STATS
@@ -2377,15 +2389,6 @@ This feature requires the dependent cfg.ini "gRoamPrefer5GHz" set to 1 */
 #define CFG_MAX_UAPSD_INACT_INTVL_MAX        (255)
 #define CFG_MAX_UAPSD_INACT_INTVL_DEFAULT    (10)
 
-/*
- * This will enable DHCP packet logging for debugging purpose
- * The log level is set as INFO.
- */
-#define CFG_DEBUG_DHCP                          "gEnableDhcpDebug"
-#define CFG_DEBUG_DHCP_DISABLE                  ( 0 )
-#define CFG_DEBUG_DHCP_ENABLE                   ( 1 )
-#define CFG_DEBUG_DHCP_DEFAULT                  ( CFG_DEBUG_DHCP_DISABLE )
-
 #define CFG_BURST_MODE_BE_TXOP_VALUE           "gBurstModeTXOPValue"
 #define CFG_BURST_MODE_BE_TXOP_VALUE_MIN       ( 0 )
 #define CFG_BURST_MODE_BE_TXOP_VALUE_MAX       ( 12288 )
@@ -2762,6 +2765,7 @@ typedef struct
    v_U32_t                     fEnableTDLSOffChannel;
    v_U32_t                     fEnableTDLSWmmMode;
    v_BOOL_t                    fEnableTDLSScanCoexSupport;
+   v_BOOL_t                    fEnableTDLSScan;
 #endif
 #ifdef WLAN_FEATURE_LINK_LAYER_STATS
    v_BOOL_t                    fEnableLLStats;
@@ -2874,7 +2878,6 @@ typedef struct
    v_U32_t                     uapsdConsecTxCntMeasWindow;
    v_U32_t                     maxPsPollInWmmUapsdMode;
    v_U32_t                     maxUapsdInactivityIntervals;
-   v_U8_t                      enableDhcpDebug; /* Enable/Disable dhcp debug */
    v_U32_t                     burstModeTXOPValue;
    v_U8_t                      acsScanBandPreference;
    v_U16_t                     acsBandSwitchThreshold;
