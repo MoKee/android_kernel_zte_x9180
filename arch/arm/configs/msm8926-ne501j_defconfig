@@ -618,3 +618,5 @@ CONFIG_ZRAM=y
 
 #not shure about this
 CONFIG_MT9M114=y
+
+CONFIG_ZTEMT_POWER_DEBUG=n
