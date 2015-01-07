@@ -304,6 +304,7 @@ void hdd_flush_ibss_tx_queues( hdd_adapter_t *pAdapter, v_U8_t STAId)
           size <= HDD_TX_QUEUE_LOW_WATER_MARK &&
           netif_tx_queue_stopped(txq) )
       {
+         hddLog(VOS_TRACE_LEVEL_INFO, FL("Enabling queue for queue %d"),i);
          netif_tx_start_queue(txq);
          pAdapter->isTxSuspended[i] = VOS_FALSE;
          ++pAdapter->hdd_stats.hddTxRxStats.txDequeDePressured;
@@ -368,6 +369,7 @@ static struct sk_buff* hdd_mon_tx_fetch_pkt(hdd_adapter_t* pAdapter)
                  "%s: TX queue[%d] re-enabled", __func__, ac);
       pAdapter->isTxSuspended[ac] = VOS_FALSE;      
       /* Enable Queues which we have disabled earlier */
+      hddLog(VOS_TRACE_LEVEL_INFO, FL("Enabling queues"));
       netif_tx_start_all_queues( pAdapter->dev ); 
    }
 
@@ -438,7 +440,8 @@ void hdd_mon_tx_mgmt_pkt(hdd_adapter_t* pAdapter)
        {
           struct tagCsrDelStaParams delStaParams;
 
-          WLANSAP_PopulateDelStaParams(hdr->addr1, eCsrForcedDeauthSta,
+          WLANSAP_PopulateDelStaParams(hdr->addr1,
+                                  eSIR_MAC_DEAUTH_LEAVING_BSS_REASON,
                                  (SIR_MAC_MGMT_DEAUTH >> 4), &delStaParams);
 
           hdd_softap_sta_deauth(pAdapter, &delStaParams);
@@ -587,6 +590,7 @@ int hdd_mon_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
       {
          /* We want to process one packet at a time, so lets disable all TX queues
            * and re-enable the queues once we get TX feedback for this packet */
+         hddLog(VOS_TRACE_LEVEL_INFO, FL("Disabling queues"));
          netif_tx_stop_all_queues(pAdapter->dev);
          pAdapter->isTxSuspended[ac] = VOS_TRUE;
          spin_unlock(&pAdapter->wmm_tx_queue[ac].lock);      
@@ -866,6 +870,7 @@ int hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
    {
          ++pAdapter->hdd_stats.hddTxRxStats.txXmitBackPressured;
          ++pAdapter->hdd_stats.hddTxRxStats.txXmitBackPressuredAC[ac];
+         hddLog(VOS_TRACE_LEVEL_INFO, FL("Disabling queue for ac %d"),ac);
          netif_tx_stop_queue(netdev_get_tx_queue(dev, skb_get_queue_mapping(skb)));
          pAdapter->isTxSuspended[ac] = VOS_TRUE;
          txSuspended = VOS_TRUE;
@@ -1033,7 +1038,8 @@ void __hdd_tx_timeout(struct net_device *dev)
    v_ULONG_t diff_in_jiffies = 0;
 
    VOS_TRACE( VOS_MODULE_ID_HDD_DATA, VOS_TRACE_LEVEL_ERROR,
-      "%s: Transmission timeout occurred", __func__);
+      "%s: Transmission timeout occurred jiffies %lu dev->trans_start %lu",
+        __func__,jiffies,dev->trans_start);
 
    if ( NULL == pAdapter )
    {
@@ -1068,7 +1074,8 @@ void __hdd_tx_timeout(struct net_device *dev)
    {
       txq = netdev_get_tx_queue(dev, i);
       VOS_TRACE( VOS_MODULE_ID_HDD_DATA, VOS_TRACE_LEVEL_ERROR,
-                "Queue%d status: %d", i, netif_tx_queue_stopped(txq));
+                "Queue%d status: %d txq->trans_start %lu",
+                 i, netif_tx_queue_stopped(txq),txq->trans_start);
    }
 
    VOS_TRACE( VOS_MODULE_ID_HDD_DATA, VOS_TRACE_LEVEL_ERROR,
@@ -1151,14 +1158,14 @@ void hdd_tx_timeout(struct net_device *dev)
 }
 
 /**============================================================================
-  @brief hdd_stats() - Function registered with the Linux OS for 
+  @brief __hdd_stats() - Function registered with the Linux OS for
   device TX/RX statistic
 
   @param dev      : [in] pointer to Libra network device
   
   @return         : pointer to net_device_stats structure
   ===========================================================================*/
-struct net_device_stats* hdd_stats(struct net_device *dev)
+struct net_device_stats* __hdd_stats(struct net_device *dev)
 {
    hdd_adapter_t *pAdapter =  WLAN_HDD_GET_PRIV_PTR(dev);
 
@@ -1173,6 +1180,16 @@ struct net_device_stats* hdd_stats(struct net_device *dev)
    return &pAdapter->stats;
 }
 
+struct net_device_stats* hdd_stats(struct net_device *dev)
+{
+    struct net_device_stats* dev_stats;
+
+    vos_ssr_protect(__func__);
+    dev_stats = __hdd_stats(dev);
+    vos_ssr_unprotect(__func__);
+
+    return dev_stats;
+}
 
 /**============================================================================
   @brief hdd_init_tx_rx() - Init function to initialize Tx/RX
@@ -1813,6 +1830,7 @@ VOS_STATUS hdd_tx_fetch_packet_cbk( v_VOID_t *vosContext,
          {
             /* During TX open duration, TX frame count is larger than threshold
              * Block TX during Sleep time */
+            hddLog(VOS_TRACE_LEVEL_INFO, FL("Disabling queues"));
             netif_tx_stop_all_queues(pAdapter->dev);
             pHddCtx->tmInfo.qBlocked = VOS_TRUE;
             pHddCtx->tmInfo.lastblockTs = timestamp;

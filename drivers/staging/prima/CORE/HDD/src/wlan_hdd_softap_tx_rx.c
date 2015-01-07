@@ -49,6 +49,7 @@
 #include <linux/etherdevice.h>
 //#include <vos_list.h>
 #include <vos_types.h>
+#include <vos_sched.h>
 #include <aniGlobal.h>
 #include <halTypes.h>
 #include <net/ieee80211_radiotap.h>
@@ -666,18 +667,19 @@ xmit_end:
 }
 
 /**============================================================================
-  @brief hdd_softap_tx_timeout() - Function called by OS if there is any
+  @brief __hdd_softap_tx_timeout() - Function called by OS if there is any
   timeout during transmission. Since HDD simply enqueues packet
   and returns control to OS right away, this would never be invoked
 
   @param dev : [in] pointer to Libra network device
   @return    : None
   ===========================================================================*/
-void hdd_softap_tx_timeout(struct net_device *dev)
+void __hdd_softap_tx_timeout(struct net_device *dev)
 {
    hdd_adapter_t *pAdapter =  WLAN_HDD_GET_PRIV_PTR(dev);
    struct netdev_queue *txq;
    int i = 0;
+   hdd_context_t *pHddCtx;
 
    VOS_TRACE( VOS_MODULE_ID_HDD_SAP_DATA, VOS_TRACE_LEVEL_ERROR,
       "%s: Transmission timeout occurred", __func__);
@@ -688,6 +690,13 @@ void hdd_softap_tx_timeout(struct net_device *dev)
               FL("pAdapter is NULL"));
       VOS_ASSERT(0);
       return;
+   }
+
+   pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
+   if (pHddCtx->isLogpInProgress) {
+       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+                       "%s:LOGP in Progress. Ignore!!!",__func__);
+       return;
    }
 
    ++pAdapter->hdd_stats.hddTxRxStats.txTimeoutCount;
@@ -736,21 +745,37 @@ void hdd_softap_tx_timeout(struct net_device *dev)
 
 } 
 
+void hdd_softap_tx_timeout(struct net_device *dev)
+{
+   vos_ssr_protect(__func__);
+   __hdd_softap_tx_timeout(dev);
+   vos_ssr_unprotect(__func__);
+   return;
+}
 
 /**============================================================================
-  @brief hdd_softap_stats() - Function registered with the Linux OS for 
+  @brief __hdd_softap_stats() - Function registered with the Linux OS for
   device TX/RX statistic
 
   @param dev      : [in] pointer to Libra network device
   
   @return         : pointer to net_device_stats structure
   ===========================================================================*/
-struct net_device_stats* hdd_softap_stats(struct net_device *dev)
+struct net_device_stats* __hdd_softap_stats(struct net_device *dev)
 {
    hdd_adapter_t* priv = netdev_priv(dev);
    return &priv->stats;
 }
 
+struct net_device_stats* hdd_softap_stats(struct net_device *dev)
+{
+   struct net_device_stats *priv_stats;
+   vos_ssr_protect(__func__);
+   priv_stats = __hdd_softap_stats(dev);
+   vos_ssr_unprotect(__func__);
+
+   return priv_stats;
+}
 
 /**============================================================================
   @brief hdd_softap_init_tx_rx() - Init function to initialize Tx/RX
@@ -1889,10 +1914,12 @@ VOS_STATUS hdd_softap_RegisterSTA( hdd_adapter_t *pAdapter,
                   "Turn on Monitor the carrier");
        netif_carrier_on(pmonAdapter->dev);
            //Enable Tx queue
+       hddLog(VOS_TRACE_LEVEL_INFO, FL("Enabling queues"));
        netif_tx_start_all_queues(pmonAdapter->dev);
     }
    netif_carrier_on(pAdapter->dev);
    //Enable Tx queue
+   hddLog(VOS_TRACE_LEVEL_INFO, FL("Enabling queues"));
    netif_tx_start_all_queues(pAdapter->dev);
 
    return( vosStatus );

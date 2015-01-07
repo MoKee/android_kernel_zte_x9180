@@ -5137,12 +5137,11 @@ static eHalStatus csrRoamSaveSecurityRspIE(tpAniSirGlobal pMac, tANI_U32 session
                                    pIesLocal->WAPI.multicast_cipher_suite + 4,
                                    2);
                       pIeBuf += 2;
-                      //bkid_count
-                      vos_mem_copy(pIeBuf, &pIesLocal->WAPI.bkid_count, 2);
-
-                      pIeBuf += 2;
-                      if( pIesLocal->WAPI.bkid_count )
+                      if ( pIesLocal->WAPI.bkid_count )
                       {
+                         //bkid_count
+                         vos_mem_copy(pIeBuf, &pIesLocal->WAPI.bkid_count, 2);
+                         pIeBuf += 2;
                          //copy akm_suites
                          vos_mem_copy(pIeBuf, pIesLocal->WAPI.bkid,
                                       pIesLocal->WAPI.bkid_count * 4);
@@ -17238,6 +17237,13 @@ void csrReleaseCommand(tpAniSirGlobal pMac, tSmeCmd *pCommand)
 eHalStatus csrQueueSmeCommand( tpAniSirGlobal pMac, tSmeCmd *pCommand, tANI_BOOLEAN fHighPriority )
 {
     eHalStatus status;
+
+    if (!SME_IS_START(pMac))
+    {
+        smsLog( pMac, LOGE, FL("Sme in stop state"));
+        return eHAL_STATUS_FAILURE;
+    }
+
     if( (eSmeCommandScan == pCommand->command) && pMac->scan.fDropScanCmd )
     {
         smsLog(pMac, LOGW, FL(" drop scan (scan reason %d) command"),
@@ -17890,3 +17896,30 @@ void csrDisableDfsChannel(tpAniSirGlobal pMac)
      csrApplyChannelPowerCountryInfo( pMac, &pMac->scan.base20MHzChannels,
                   pMac->scan.countryCodeCurrent, eANI_BOOLEAN_TRUE);
 }
+
+/* ---------------------------------------------------------------------------
+    \fn csrGetStaticUapsdMask
+    \brief  This function will get the static uapsd settings for an existing
+    \ Infra session.
+    \param  pMac - pMac global structure
+    \- return void
+    -------------------------------------------------------------------------*/
+void csrGetStaticUapsdMask(tpAniSirGlobal pMac, tANI_U8 *staticUapsdMask)
+{
+    tANI_S8 sessionId;
+    tCsrRoamSession *pSession = NULL;
+
+    *staticUapsdMask = 0;
+    sessionId = csrGetInfraSessionId(pMac);
+    if(sessionId == -1)
+       smsLog(pMac, LOGE, FL("Valid session not present."));
+    else
+       pSession = CSR_GET_SESSION(pMac, sessionId);
+
+    if(!pSession || !pSession->pCurRoamProfile)
+       smsLog(pMac, LOGE, FL("Either pSession or Roam profile is NULL,"
+           " pSession:%p"), pSession);
+    else
+       *staticUapsdMask = pSession->pCurRoamProfile->uapsd_mask;
+}
+
