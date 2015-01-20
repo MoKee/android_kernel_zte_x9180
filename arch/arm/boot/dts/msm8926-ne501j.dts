@@ -12,6 +12,7 @@
 
 
 /dts-v1/;
+/include/ "zte/ne501j/msm8226-memreserve.dtsi"
 /include/ "msm8926-v1.dtsi"
 /include/ "zte/ne501j/dsi-cs-panel-nt35592-720p-video.dtsi"
 /include/ "zte/ne501j/dsi-success-panel-hx8392b-720p-video.dtsi"
