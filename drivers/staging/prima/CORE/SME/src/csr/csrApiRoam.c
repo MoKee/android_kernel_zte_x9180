@@ -594,7 +594,7 @@ eHalStatus csrUpdateChannelList(tpAniSirGlobal pMac)
         VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO,
              "%s Supported Channel: %d\n", __func__, pChanList->chanParam[i].chanId);
     }
-
+    pChanList->regId = csrGetCurrentRegulatoryDomain(pMac);
     if(VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MODULE_ID_WDA, &msg))
     {
         VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_FATAL,
@@ -3496,12 +3496,13 @@ eHalStatus csrSetQosToCfg( tpAniSirGlobal pMac, tANI_U32 sessionId, eCsrMediaAcc
     return (status);
 }
 static eHalStatus csrGetRateSet( tpAniSirGlobal pMac,  tCsrRoamProfile *pProfile, eCsrPhyMode phyMode, tSirBssDescription *pBssDesc,
-                           tDot11fBeaconIEs *pIes, tSirMacRateSet *pOpRateSet, tSirMacRateSet *pExRateSet)
+                           tDot11fBeaconIEs *pIes, tSirMacRateSet *pOpRateSet, tSirMacRateSet *pExRateSet, tANI_U16 *pRateBitmap)
 {
     eHalStatus status = eHAL_STATUS_FAILURE;
     int i;
     eCsrCfgDot11Mode cfgDot11Mode;
     tANI_U8 *pDstRate;
+    tANI_U16 rateBitmap = 0;
     vos_mem_set(pOpRateSet, sizeof(tSirMacRateSet), 0);
     vos_mem_set(pExRateSet, sizeof(tSirMacRateSet), 0);
     VOS_ASSERT( pIes != NULL );
@@ -3525,6 +3526,7 @@ static eHalStatus csrGetRateSet( tpAniSirGlobal pMac,  tCsrRoamProfile *pProfile
             {
                 if ( csrRatesIsDot11RateSupported( pMac, pIes->SuppRates.rates[ i ] ) ) 
                 {
+                    csrAddRateBitmap(pIes->SuppRates.rates[ i ], &rateBitmap);
                     *pDstRate++ = pIes->SuppRates.rates[ i ];
                     pOpRateSet->numRates++;
                 }
@@ -3545,12 +3547,17 @@ static eHalStatus csrGetRateSet( tpAniSirGlobal pMac,  tCsrRoamProfile *pProfile
                 {
                     if ( csrRatesIsDot11RateSupported( pMac, pIes->ExtSuppRates.rates[ i ] ) ) 
                     {
-                        *pDstRate++ = pIes->ExtSuppRates.rates[ i ];
-                        pExRateSet->numRates++;
+                        if (!csrIsRateAlreadyPresent(pIes->ExtSuppRates.rates[ i ], rateBitmap))
+                        {
+                            csrAddRateBitmap(pIes->ExtSuppRates.rates[ i ], &rateBitmap);
+                            *pDstRate++ = pIes->ExtSuppRates.rates[ i ];
+                            pExRateSet->numRates++;
+                        }
                     }
                 }
             }
         }
+        *pRateBitmap = rateBitmap;
     }//Parsing BSSDesc
     else
     {
@@ -4694,7 +4701,8 @@ eHalStatus csrRoamProcessCommand( tpAniSirGlobal pMac, tSmeCmd *pCommand )
         smsLog(pMac, LOGE, FL("  session %d not found "), sessionId);
         return eHAL_STATUS_FAILURE;
     }
-
+    smsLog(pMac, LOG1, FL("Roam Reason : %d, sessionId: %d"),
+                         pCommand->u.roamCmd.roamReason, sessionId);
     switch ( pCommand->u.roamCmd.roamReason )
     {
     case eCsrForcedDisassoc:
@@ -7175,7 +7183,6 @@ eHalStatus csrRoamIssueDisassociateCmd( tpAniSirGlobal pMac, tANI_U32 sessionId,
         tANI_BOOLEAN fHighPriority = eANI_BOOLEAN_FALSE;
     do
     {
-        smsLog( pMac, LOG1, FL("  reason = %d"), reason );
         pCommand = csrGetCommandBuffer( pMac );
         if ( !pCommand ) 
         {
@@ -7191,6 +7198,8 @@ eHalStatus csrRoamIssueDisassociateCmd( tpAniSirGlobal pMac, tANI_U32 sessionId,
         }
         pCommand->command = eSmeCommandRoam;
         pCommand->sessionId = (tANI_U8)sessionId;
+        smsLog( pMac, LOG1, FL("Disassociate reason: %d, sessionId: %d"),
+                                reason,sessionId);
         switch ( reason )
         {
         case eCSR_DISCONNECT_REASON_MIC_ERROR:
@@ -8152,6 +8161,7 @@ void csrRoamRoamingStateDisassocRspProcessor( tpAniSirGlobal pMac, tSirSmeDisass
     
     if ( CSR_IS_ROAM_SUBSTATE_DISASSOC_NO_JOIN( pMac, sessionId ) )
     {
+        smsLog( pMac, LOG2, "***eCsrNothingToJoin***");
         csrRoamComplete( pMac, eCsrNothingToJoin, NULL );
     }
     else if ( CSR_IS_ROAM_SUBSTATE_DISASSOC_FORCED( pMac, sessionId ) ||
@@ -9480,7 +9490,7 @@ void csrRoamCheckForLinkStatusChange( tpAniSirGlobal pMac, tSirSmeRsp *pSirMsg )
         case eWNI_SME_ASSOC_IND:
             {
                 tCsrRoamSession  *pSession;
-                smsLog( pMac, LOG1, FL("ASSOCIATION Indication from SME"));
+                smsLog( pMac, LOG1, FL("Receive WNI_SME_ASSOC_IND from SME"));
                 pAssocInd = (tSirSmeAssocInd *)pSirMsg;
                 status = csrRoamGetSessionIdFromBSSID( pMac, (tCsrBssid *)pAssocInd->bssId, &sessionId );
                 if( HAL_STATUS_SUCCESS( status ) )
@@ -11026,7 +11036,9 @@ void csrRoamProcessWmStatusChangeCommand( tpAniSirGlobal pMac, tSmeCmd *pCommand
         smsLog(pMac, LOGE, FL("  session %d not found "), pCommand->sessionId);
         return;
     }
-    
+    smsLog(pMac, LOG1, FL("session:%d, CmdType : %d"),
+                       pCommand->sessionId,
+                       pCommand->u.wmStatusChangeCmd.Type);
     switch ( pCommand->u.wmStatusChangeCmd.Type )
     {
         case eCsrDisassociated:
@@ -11473,6 +11485,11 @@ tANI_BOOLEAN csrRoamIsValid40MhzChannel(tpAniSirGlobal pMac, tANI_U8 channel)
                 if((PHY_SINGLE_CHANNEL_CENTERED != eRet) && !csrRoamIsValid40MhzChannel(pMac, centerChn))
                 {
                     smsLog(pMac, LOGE, "  Invalid center channel (%d), disable 40MHz mode", centerChn);
+                    eRet = PHY_SINGLE_CHANNEL_CENTERED;
+                }
+                if ((CSR_IS_CHANNEL_24GHZ(primaryChn))&& !IS_HT40_OBSS_SCAN_FEATURE_ENABLE)
+                {
+                    smsLog(pMac, LOG1,FL("FW doesn't support channelBondingMode24GHz"));
                     eRet = PHY_SINGLE_CHANNEL_CENTERED;
                 }
             }
@@ -12861,6 +12878,7 @@ eHalStatus csrSendJoinReqMsg( tpAniSirGlobal pMac, tANI_U32 sessionId, tSirBssDe
     tANI_U8 wpaRsnIE[DOT11F_IE_RSN_MAX_LEN];    //RSN MAX is bigger than WPA MAX
     tANI_U32 ucDot11Mode = 0;
     tANI_U8 txBFCsnValue = 0;
+    tANI_U16 rateBitmap = 0;
 
     if(!pSession)
     {
@@ -12956,7 +12974,7 @@ eHalStatus csrSendJoinReqMsg( tpAniSirGlobal pMac, tANI_U32 sessionId, tSirBssDe
 
 
 
-        status = csrGetRateSet(pMac, pProfile, (eCsrPhyMode)pProfile->phyMode, pBssDescription, pIes, &OpRateSet, &ExRateSet);
+        status = csrGetRateSet(pMac, pProfile, (eCsrPhyMode)pProfile->phyMode, pBssDescription, pIes, &OpRateSet, &ExRateSet,&rateBitmap);
         if (HAL_STATUS_SUCCESS(status) )
         {
             // OperationalRateSet
@@ -12977,6 +12995,11 @@ eHalStatus csrSendJoinReqMsg( tpAniSirGlobal pMac, tANI_U32 sessionId, tSirBssDe
             *pBuf++ = 0;
             *pBuf++ = 0;
         }
+
+        //rateBitmap
+        vos_mem_copy(pBuf, &rateBitmap, sizeof(tANI_U16));
+        pBuf += sizeof(tANI_U16);
+
         // rsnIE
         if ( csrIsProfileWpa( pProfile ) )
         {
@@ -13948,6 +13971,10 @@ eHalStatus csrSendAssocCnfMsg( tpAniSirGlobal pMac, tpSirSmeAssocInd pAssocInd, 
     tANI_U8 *pBuf;
     tSirResultCodes statusCode;
     tANI_U16 wTmp;
+
+    smsLog( pMac, LOG1, FL("Posting eWNI_SME_ASSOC_CNF to LIM. "
+                           "HalStatus : %d"),
+                            Halstatus);
     do {
         pMsg = vos_mem_malloc(sizeof( tSirSmeAssocCnf ));
         if ( NULL == pMsg )

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -113,6 +113,7 @@ typedef struct op_class_map {
     tANI_U8 channels[15];
 }op_class_map_t;
 // LIM utility functions
+tANI_BOOLEAN limCheck11BRateBitmap(tANI_U16 RateBitmap);
 void limGetBssidFromPkt(tpAniSirGlobal, tANI_U8 *, tANI_U8 *, tANI_U32 *);
 char * limMlmStateStr(tLimMlmStates state);
 char * limSmeStateStr(tLimSmeStates state);
@@ -547,4 +548,7 @@ void limInitOperatingClasses(tHalHandle hHal);
 tANI_U8 limGetOPClassFromChannel(tANI_U8 *country,
                                  tANI_U8 channel,
                                  tANI_U8 offset);
+void limParseBeaconForTim(tpAniSirGlobal pMac, tANI_U8* pRxPacketInfo,
+                          tpPESession psessionEntry);
+
 #endif /* __LIM_UTILS_H */

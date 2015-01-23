@@ -5433,7 +5433,7 @@ int __hdd_stop (struct net_device *dev)
          "%s: pAdapter is Null", __func__);
       return -ENODEV;
    }
-   MTRACE(vos_trace(VOS_MODULE_ID_HDD, TRACE_CODE_HDD_OPEN_REQUEST,
+   MTRACE(vos_trace(VOS_MODULE_ID_HDD, TRACE_CODE_HDD_STOP_REQUEST,
                     pAdapter->sessionId, pAdapter->device_mode));
 
    pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
@@ -5476,9 +5476,14 @@ int __hdd_stop (struct net_device *dev)
     * That is intentional to be able to scan if it is a STA/P2P interface
     */
    hdd_stop_adapter(pHddCtx, pAdapter, VOS_FALSE);
-
+#ifdef FEATURE_WLAN_TDLS
+   mutex_lock(&pHddCtx->tdls_lock);
+#endif
    /* DeInit the adapter. This ensures datapath cleanup as well */
    hdd_deinit_adapter(pHddCtx, pAdapter);
+#ifdef FEATURE_WLAN_TDLS
+   mutex_unlock(&pHddCtx->tdls_lock);
+#endif
    /* SoftAP ifaces should never go in power save mode
       making sure same here. */
    if ( (WLAN_HDD_SOFTAP == pAdapter->device_mode )
@@ -5561,7 +5566,7 @@ int hdd_stop (struct net_device *dev)
 static void __hdd_uninit (struct net_device *dev)
 {
    hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
-
+   hdd_context_t *pHddCtx;
    ENTER();
 
    do
@@ -5579,8 +5584,8 @@ static void __hdd_uninit (struct net_device *dev)
                 "%s: Invalid magic", __func__);
          break;
       }
-
-      if (NULL == pAdapter->pHddCtx)
+      pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
+      if (NULL == pHddCtx)
       {
          hddLog(VOS_TRACE_LEVEL_FATAL,
                 "%s: NULL pHddCtx", __func__);
@@ -5593,8 +5598,13 @@ static void __hdd_uninit (struct net_device *dev)
                 "%s: Invalid device reference", __func__);
          /* we haven't validated all cases so let this go for now */
       }
-
-      hdd_deinit_adapter(pAdapter->pHddCtx, pAdapter);
+#ifdef FEATURE_WLAN_TDLS
+      mutex_lock(&pHddCtx->tdls_lock);
+#endif
+      hdd_deinit_adapter(pHddCtx, pAdapter);
+#ifdef FEATURE_WLAN_TDLS
+      mutex_unlock(&pHddCtx->tdls_lock);
+#endif
 
       /* after uninit our adapter structure will no longer be valid */
       pAdapter->dev = NULL;
@@ -6242,23 +6252,8 @@ VOS_STATUS hdd_init_station_mode( hdd_adapter_t *pAdapter )
 
    set_bit(WMM_INIT_DONE, &pAdapter->event_flags);
 
-#ifdef FEATURE_WLAN_TDLS
-   if(0 != wlan_hdd_sta_tdls_init(pAdapter))
-   {
-       status = VOS_STATUS_E_FAILURE;
-       hddLog(VOS_TRACE_LEVEL_ERROR,"%s: wlan_hdd_sta_tdls_init failed",__func__);
-       goto error_tdls_init;
-   }
-   set_bit(TDLS_INIT_DONE, &pAdapter->event_flags);
-#endif
-
    return VOS_STATUS_SUCCESS;
 
-#ifdef FEATURE_WLAN_TDLS
-error_tdls_init:
-   clear_bit(WMM_INIT_DONE, &pAdapter->event_flags);
-   hdd_wmm_adapter_close(pAdapter);
-#endif
 error_wmm_init:
    clear_bit(INIT_TX_RX_SUCCESS, &pAdapter->event_flags);
    hdd_deinit_tx_rx(pAdapter);
@@ -6332,14 +6327,6 @@ void hdd_deinit_adapter( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter )
          }
 
          hdd_cleanup_actionframe(pHddCtx, pAdapter);
-#ifdef FEATURE_WLAN_TDLS
-         if(test_bit(TDLS_INIT_DONE, &pAdapter->event_flags))
-         {
-            wlan_hdd_tdls_exit(pAdapter);
-            clear_bit(TDLS_INIT_DONE, &pAdapter->event_flags);
-         }
-#endif
-
          break;
       }
 
@@ -6730,7 +6717,13 @@ hdd_adapter_t* hdd_open_adapter( hdd_context_t *pHddCtx, tANI_U8 session_type,
          status = hdd_register_interface( pAdapter, rtnl_held );
          if( VOS_STATUS_SUCCESS != status )
          {
+#ifdef FEATURE_WLAN_TDLS
+            mutex_lock(&pHddCtx->tdls_lock);
+#endif
             hdd_deinit_adapter(pHddCtx, pAdapter);
+#ifdef FEATURE_WLAN_TDLS
+            mutex_unlock(&pHddCtx->tdls_lock);
+#endif
             goto err_free_netdev;
          }
 
@@ -8153,7 +8146,13 @@ void hdd_wlan_exit(hdd_context_t *pHddCtx)
             /* DeInit the adapter. This ensures that all data packets
              * are freed.
              */
+#ifdef FEATURE_WLAN_TDLS
+            mutex_lock(&pHddCtx->tdls_lock);
+#endif
             hdd_deinit_adapter(pHddCtx, pAdapter);
+#ifdef FEATURE_WLAN_TDLS
+            mutex_unlock(&pHddCtx->tdls_lock);
+#endif
 
             if (WLAN_HDD_INFRA_STATION ==  pAdapter->device_mode ||
                 WLAN_HDD_P2P_CLIENT == pAdapter->device_mode)
@@ -9903,8 +9902,10 @@ static void hdd_driver_exit(void)
 {
    hdd_context_t *pHddCtx = NULL;
    v_CONTEXT_t pVosContext = NULL;
+   pVosWatchdogContext pVosWDCtx = NULL;
    v_REGDOMAIN_t regId;
    unsigned long rc = 0;
+   unsigned long flags;
 
    pr_info("%s: unloading driver v%s\n", WLAN_MODULE_NAME, QWLAN_VERSIONSTR);
 
@@ -9926,27 +9927,46 @@ static void hdd_driver_exit(void)
    }
    else
    {
-       INIT_COMPLETION(pHddCtx->ssr_comp_var);
+      pVosWDCtx = get_vos_watchdog_ctxt();
+      if(pVosWDCtx == NULL)
+      {
+         hddLog(VOS_TRACE_LEVEL_ERROR, FL("WD context is invalid"));
+         goto done;
+      }
+      spin_lock_irqsave(&pVosWDCtx->wdLock, flags);
+      if (!pHddCtx->isLogpInProgress || (TRUE ==
+               vos_is_wlan_in_badState(VOS_MODULE_ID_HDD, NULL)))
+      {
+         //SSR isn't in progress OR last wlan reinit wasn't successful
+         pHddCtx->isLoadUnloadInProgress = WLAN_HDD_UNLOAD_IN_PROGRESS;
+         vos_set_load_unload_in_progress(VOS_MODULE_ID_VOSS, TRUE);
+         spin_unlock_irqrestore(&pVosWDCtx->wdLock, flags);
+      }
+      else
+      {
+         INIT_COMPLETION(pHddCtx->ssr_comp_var);
 
-       if ((pHddCtx->isLogpInProgress) &&
-           (FALSE == vos_is_wlan_in_badState(VOS_MODULE_ID_HDD, NULL)))
-       {
-           VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
-                     "%s:SSR in Progress; block rmmod !!!", __func__);
-           rc = wait_for_completion_timeout(&pHddCtx->ssr_comp_var,
-                                             msecs_to_jiffies(30000));
-           if(!rc)
-           {
-               VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
-                         "%s:SSR timedout, fatal error", __func__);
-               VOS_BUG(0);
-           }
-       }
+         pHddCtx->isLoadUnloadInProgress = WLAN_HDD_UNLOAD_IN_PROGRESS;
+         vos_set_load_unload_in_progress(VOS_MODULE_ID_VOSS, TRUE);
+         spin_unlock_irqrestore(&pVosWDCtx->wdLock, flags);
 
-       rtnl_lock();
-       pHddCtx->isLoadUnloadInProgress = WLAN_HDD_UNLOAD_IN_PROGRESS;
-       vos_set_load_unload_in_progress(VOS_MODULE_ID_VOSS, TRUE);
-       rtnl_unlock();
+         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+              "%s:SSR is in Progress; block rmmod !!!", __func__);
+         rc = wait_for_completion_timeout(&pHddCtx->ssr_comp_var,
+                                          msecs_to_jiffies(30000));
+         if(!rc)
+         {
+              VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
+              "%s:SSR timedout, fatal error", __func__);
+              VOS_BUG(0);
+         }
+      }
+
+      /* We wait for active entry threads to exit from driver
+       * by waiting until rtnl_lock is available.
+       */
+      rtnl_lock();
+      rtnl_unlock();
 
        /* Driver Need to send country code 00 in below condition
         * 1) If gCountryCodePriority is set to 1; and last country
@@ -10351,7 +10371,8 @@ v_BOOL_t hdd_is_apps_power_collapse_allowed(hdd_context_t* pHddCtx)
         {
             if (((pConfig->fIsImpsEnabled || pConfig->fIsBmpsEnabled)
                  && (pmcState != IMPS && pmcState != BMPS && pmcState != UAPSD
-                  &&  pmcState != STOPPED && pmcState != STANDBY)) ||
+                  &&  pmcState != STOPPED && pmcState != STANDBY &&
+                      pmcState != WOWL)) ||
                  (eANI_BOOLEAN_TRUE == scanRspPending) ||
                  (eANI_BOOLEAN_TRUE == inMiddleOfRoaming))
             {

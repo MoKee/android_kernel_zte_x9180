@@ -62,7 +62,7 @@
 
 #include "wlan_qct_wda.h"
 
-
+#define IS_BROADCAST_MAC(x) (((x[0] & x[1] & x[2] & x[3] & x[4] & x[5]) == 0xff) ? 1 : 0)
 ////////////////////////////////////////////////////////////////////////
 
 tSirRetStatus limStripOffExtCapIE(tpAniSirGlobal pMac,
@@ -317,7 +317,6 @@ limSendProbeReqMgmtFrame(tpAniSirGlobal pMac,
     tANI_U8              sessionId;
     tANI_U8             *p2pIe = NULL;
     tANI_U32             txFlag = 0;
-    tANI_U32             chanbond24G = 0;
 
 #ifndef GEN4_SCAN
     return eSIR_FAILURE;
@@ -414,9 +413,9 @@ limSendProbeReqMgmtFrame(tpAniSirGlobal pMac,
            }
     }
 
-    /* Get HT40 capability  for 2.4GHz band */
-    wlan_cfgGetInt(pMac,WNI_CFG_CHANNEL_BONDING_24G,&chanbond24G);
-    if( (nChannelNum <= SIR_11B_CHANNEL_END) && chanbond24G != TRUE)
+    if((nChannelNum <= SIR_11B_CHANNEL_END)
+       && (!IS_HT40_OBSS_SCAN_FEATURE_ENABLE)
+       && (!pMac->roam.configParam.channelBondingMode24GHz))
     {
         pr.HTCaps.supportedChannelWidthSet = eHT_CHANNEL_WIDTH_20MHZ;
         pr.HTCaps.shortGI40MHz = 0;
@@ -523,6 +522,11 @@ limSendProbeReqMgmtFrame(tpAniSirGlobal pMac,
       ) 
     {
         txFlag |= HAL_USE_BD_RATE2_FOR_MANAGEMENT_FRAME; 
+    }
+
+    if( ( psessionEntry != NULL ) && ( psessionEntry->is11Gonly == true ) &&
+                                     ( !IS_BROADCAST_MAC(bssid) ) ){
+        txFlag |= HAL_USE_BD_RATE2_FOR_MANAGEMENT_FRAME;
     }
 
     halstatus = halTxFrame( pMac, pPacket, ( tANI_U16 ) sizeof(tSirMacMgmtHdr) + nPayload,
@@ -745,6 +749,11 @@ limSendProbeRspMgmtFrame(tpAniSirGlobal pMac,
     {
         PopulateDot11fOBSSScanParameters( pMac, &pFrm->OBSSScanParameters,
                                                              psessionEntry);
+        /* 10.15.8 Support of DSSS/CCK in 40 MHz, An associated HT STA in
+         * a 20/40 MHz BSS may generate DSSS/CCK transmissions.Set DSSS/CCK
+         * Mode in 40 MHz bit in HT capablity.
+         */
+        pFrm->HTCaps.dsssCckMode40MHz = 1;
     }
 #endif
 
@@ -762,7 +771,7 @@ limSendProbeRspMgmtFrame(tpAniSirGlobal pMac,
 #endif
 
 
-    if ( psessionEntry->pLimStartBssReq ) 
+    if ( psessionEntry->pLimStartBssReq )
     {
       PopulateDot11fWPA( pMac, &( psessionEntry->pLimStartBssReq->rsnIE ),
           &pFrm->WPA );
@@ -1493,6 +1502,11 @@ limSendAssocRspMgmtFrame(tpAniSirGlobal pMac,
         {
             PopulateDot11fOBSSScanParameters( pMac, &frm.OBSSScanParameters,
                                                                psessionEntry);
+            /* 10.15.8 Support of DSSS/CCK in 40 MHz, An associated HT STA in
+             * a 20/40 MHz BSS may generate DSSS/CCK transmissions.Set DSSS/CCK
+             * Mode in 40 MHz bit in HT capablity.
+             */
+            frm.HTCaps.dsssCckMode40MHz = 1;
         }
 #endif
 
@@ -2600,6 +2614,11 @@ limSendAssocReqMgmtFrame(tpAniSirGlobal   pMac,
 
     // enable caching
     WLANTL_EnableCaching(psessionEntry->staId);
+
+    if( ( psessionEntry->is11Gonly == true ) &&
+                          ( !IS_BROADCAST_MAC(pMlmAssocReq->peerMacAddr) ) ){
+        txFlag |= HAL_USE_BD_RATE2_FOR_MANAGEMENT_FRAME;
+    }
 
     halstatus = halTxFrame( pMac, pPacket, ( tANI_U16 ) (sizeof(tSirMacMgmtHdr) + nPayload),
             HAL_TXRX_FRM_802_11_MGMT,
@@ -3748,6 +3767,12 @@ limSendAuthMgmtFrame(tpAniSirGlobal pMac,
     MTRACE(macTrace(pMac, TRACE_CODE_TX_MGMT,
            psessionEntry->peSessionId,
            pMacHdr->fc.subType));
+
+    if( ( psessionEntry->is11Gonly == true ) &&
+                        ( !IS_BROADCAST_MAC(peerMacAddr) ) ){
+         txFlag |= HAL_USE_BD_RATE2_FOR_MANAGEMENT_FRAME;
+    }
+
     /// Queue Authentication frame in high priority WQ
     halstatus = halTxFrame( pMac, pPacket, ( tANI_U16 ) frameLen,
                             HAL_TXRX_FRM_802_11_MGMT,
@@ -3882,6 +3907,8 @@ eHalStatus limSendDisassocCnf(tpAniSirGlobal pMac)
         pStaDs = dphLookupHashEntry(pMac, pMlmDisassocReq->peerMacAddr, &aid, &psessionEntry->dph.dphHashTable);
         if (pStaDs == NULL)
         {
+            limLog(pMac, LOGE,
+                   FL("StaDs Null"));
             mlmDisassocCnf.resultCode = eSIR_SME_INVALID_PARAMETERS;
             goto end;
         }
@@ -3890,6 +3917,8 @@ eHalStatus limSendDisassocCnf(tpAniSirGlobal pMac)
         if(eSIR_SUCCESS != limCleanupRxPath(pMac, pStaDs, psessionEntry))
         {
             mlmDisassocCnf.resultCode = eSIR_SME_RESOURCES_UNAVAILABLE;
+            limLog(pMac, LOGE,
+                   FL("CleanupRxPath error"));
             goto end;
         }
 

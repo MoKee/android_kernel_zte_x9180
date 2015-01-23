@@ -1433,16 +1433,6 @@ eHalStatus sme_UpdateConfig(tHalHandle hHal, tpSmeConfigParams pSmeConfigParams)
    /* update the directed scan offload setting */
    pMac->fScanOffload = pSmeConfigParams->fScanOffload;
 
-   /* Enable channel bonding mode in 2.4GHz */
-   if ((pSmeConfigParams->csrConfig.channelBondingMode24GHz == TRUE) &&
-       (IS_HT40_OBSS_SCAN_FEATURE_ENABLE))
-   {
-      ccmCfgSetInt(hHal,WNI_CFG_CHANNEL_BONDING_24G,
-                 eANI_BOOLEAN_TRUE, NULL,eANI_BOOLEAN_FALSE);
-      VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO_HIGH,
-                   "Setting channelBondingMode24GHz:%d " ,
-                pSmeConfigParams->csrConfig.channelBondingMode24GHz);
-   }
    if (pMac->fScanOffload)
    {
        /* If scan offload is enabled then lim has allow the sending of
@@ -7790,6 +7780,11 @@ eHalStatus sme_HandleChangeCountryCode(tpAniSirGlobal pMac,  void *pMsgBuf)
    {
        //if 11d has priority, clear currentCountryBssid & countryCode11d to get
        //set again if we find AP with 11d info during scan
+       status = csrSetRegulatoryDomain(pMac, domainIdIoctl, NULL);
+       if (status != eHAL_STATUS_SUCCESS)
+       {
+           smsLog( pMac, LOGE, FL("fail to set regId.status : %d"), status);
+       }
        if (!pMac->roam.configParam.fSupplicantCountryCodeHasPriority)
        {
            smsLog( pMac, LOGW, FL("Clearing currentCountryBssid, countryCode11d"));
@@ -7892,6 +7887,11 @@ eHalStatus sme_HandleChangeCountryCodeByUser(tpAniSirGlobal pMac,
     vos_mem_copy(pMac->scan.countryCodeCurrent, pMsg->countryCode,
                   WNI_CFG_COUNTRY_CODE_LEN);
 
+    status = csrSetRegulatoryDomain(pMac, reg_domain_id, NULL);
+    if (status != eHAL_STATUS_SUCCESS)
+    {
+        smsLog( pMac, LOGE, FL("fail to set regId.status : %d"), status);
+    }
     status = WDA_SetRegDomain(pMac, reg_domain_id, eSIR_TRUE);
 
     if (VOS_FALSE == is11dCountry )
@@ -7991,6 +7991,11 @@ eHalStatus sme_HandleChangeCountryCodeByCore(tpAniSirGlobal pMac, tAniGenericCha
     }
     else
     {
+        status = csrSetRegulatoryDomain(pMac, REGDOMAIN_WORLD, NULL);
+        if (status != eHAL_STATUS_SUCCESS)
+        {
+            smsLog( pMac, LOGE, FL("fail to set regId.status : %d"), status);
+        }
         status = csrInitGetChannels(pMac);
         if ( status != eHAL_STATUS_SUCCESS )
         {

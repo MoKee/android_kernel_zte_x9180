@@ -3178,7 +3178,7 @@ failed:
 
 static int wlan_hdd_cfg80211_extscan_set_bssid_hotlist(struct wiphy *wiphy,
                                         struct wireless_dev *wdev,
-                                        void *data, int dataLen)
+                                        const void *data, int dataLen)
 {
     tpSirEXTScanSetBssidHotListReqParams pReqMsg = NULL;
     struct net_device *dev                     = wdev->netdev;
@@ -7430,26 +7430,8 @@ int __wlan_hdd_cfg80211_change_iface( struct wiphy *wiphy,
                     pAdapter->device_mode = (type == NL80211_IFTYPE_STATION) ?
                                 WLAN_HDD_INFRA_STATION: WLAN_HDD_P2P_CLIENT;
                 }
-#ifdef FEATURE_WLAN_TDLS
-                /* The open adapter for the p2p shall skip initializations in
-                 * tdls_init if the device mode is WLAN_HDD_P2P_DEVICE, for
-                 * TDLS is supported only on WLAN_HDD_P2P_CLIENT. Hence invoke
-                 * tdls_init when the change_iface sets the device mode to
-                 * WLAN_HDD_P2P_CLIENT.
-                 */
-
-                if ( pAdapter->device_mode == WLAN_HDD_P2P_CLIENT)
-                {
-                    if (0 != wlan_hdd_sta_tdls_init (pAdapter))
-                    {
-                        hddLog(VOS_TRACE_LEVEL_ERROR,
-                            "%s: tdls initialization failed", __func__);
-                        return -EINVAL;
-                    }
-                }
-#endif
-
                 break;
+
             case NL80211_IFTYPE_ADHOC:
                 hddLog(VOS_TRACE_LEVEL_INFO,
                   "%s: setting interface Type to ADHOC", __func__);
@@ -14351,9 +14333,10 @@ static int __wlan_hdd_cfg80211_tdls_oper(struct wiphy *wiphy, struct net_device 
                 VOS_STATUS status;
                 long ret;
                 tCsrTdlsLinkEstablishParams tdlsLinkEstablishParams;
+                WLAN_STADescType         staDesc;
 
                 pTdlsPeer = wlan_hdd_tdls_find_peer(pAdapter, peer, TRUE);
-
+                memset(&staDesc, 0, sizeof(staDesc));
                 if ( NULL == pTdlsPeer ) {
                     hddLog(VOS_TRACE_LEVEL_ERROR, "%s: " MAC_ADDRESS_STR
                            " (oper %d) not exsting. ignored",
@@ -14404,6 +14387,12 @@ static int __wlan_hdd_cfg80211_tdls_oper(struct wiphy *wiphy, struct net_device 
                     wlan_hdd_tdls_set_peer_link_status(pTdlsPeer,
                                                        eTDLS_LINK_CONNECTED,
                                                        eTDLS_LINK_SUCCESS);
+                    staDesc.ucSTAId = pTdlsPeer->staId;
+                    staDesc.ucQosEnabled = tdlsLinkEstablishParams.qos;
+                    WLANTL_UpdateTdlsSTAClient(pHddCtx->pvosContext,
+                                                    &staDesc);
+
+
                     /* Mark TDLS client Authenticated .*/
                     status = WLANTL_ChangeSTAState( pHddCtx->pvosContext,
                                                     pTdlsPeer->staId,
