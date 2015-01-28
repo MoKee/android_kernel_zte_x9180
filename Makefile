@@ -1157,7 +1157,8 @@ modules modules_install: FORCE
 	@echo "Type 'make config' and enable loadable module support."
 	@echo "Then build a kernel with module support enabled."
 	@echo
-	@exit 1
+#	@exit 1
+	@exit 0
 
 endif # CONFIG_MODULES
 
