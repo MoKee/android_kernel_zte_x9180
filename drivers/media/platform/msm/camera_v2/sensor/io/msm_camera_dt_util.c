@@ -17,7 +17,7 @@
 #include "msm_cci.h"
 
 #include <linux/of_gpio.h>  //tanyijun add 
-#define CONFIG_MSM_CAMERA_DT_DEBUG
+// #define CONFIG_MSM_CAMERA_DT_DEBUG
 #undef CDBG
 #ifdef CONFIG_MSM_CAMERA_DT_DEBUG
 #define CDBG(fmt, args...) pr_err(fmt, ##args)
