@@ -20,7 +20,7 @@
 #include <mach/rpm-regulator-smd.h>
 #include <linux/regulator/consumer.h>
 
-/*#define CONFIG_MSMB_CAMERA_DEBUG*/
+#define CONFIG_MSMB_CAMERA_DEBUG
 #undef CDBG
 #ifdef CONFIG_MSMB_CAMERA_DEBUG
 #define CDBG(fmt, args...) pr_err(fmt, ##args)
@@ -429,6 +429,7 @@ int msm_sensor_power_up(struct msm_sensor_ctrl_t *s_ctrl)
 	struct msm_camera_slave_info *slave_info;
 	const char *sensor_name;
 
+      printk("~~~tanyijun %s/:Enter \n ",__func__);
 	if (!s_ctrl) {
 		pr_err("%s:%d failed: %p\n",
 			__func__, __LINE__, s_ctrl);
@@ -448,6 +449,7 @@ int msm_sensor_power_up(struct msm_sensor_ctrl_t *s_ctrl)
 		return -EINVAL;
 	}
 
+	printk("~~~tanyijun %s/:%d \n ",__func__,__LINE__);
 	rc = msm_camera_power_up(power_info, s_ctrl->sensor_device_type,
 		sensor_i2c_client);
 	if (rc < 0)
@@ -456,7 +458,7 @@ int msm_sensor_power_up(struct msm_sensor_ctrl_t *s_ctrl)
 	if (rc < 0)
 		msm_camera_power_down(power_info, s_ctrl->sensor_device_type,
 					sensor_i2c_client);
-
+ printk("~~~tanyijun %s/:Exit \n ",__func__);
 	return rc;
 }
 
@@ -493,6 +495,8 @@ int msm_sensor_match_id(struct msm_sensor_ctrl_t *s_ctrl)
 	}
 
 	CDBG("%s: read id: %x expected id %x:\n", __func__, chipid,
+		slave_info->sensor_id);
+	printk("%s: read id: %x expected id %x:\n", __func__, chipid,
 		slave_info->sensor_id);
 	if (chipid != slave_info->sensor_id) {
 		pr_err("msm_sensor_match_id chip id doesnot match\n");

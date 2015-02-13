@@ -53,11 +53,6 @@
 #define MAX_AF_ITERATIONS 3
 #define MAX_NUMBER_OF_STEPS 47
 
-typedef enum sensor_stats_type {
-	YRGB,
-	YYYY,
-} sensor_stats_type_t;
-
 enum flash_type {
 	LED_FLASH = 1,
 	STROBE_FLASH,
@@ -113,6 +108,10 @@ enum msm_camera_vreg_name_t {
 	CAM_VIO,
 	CAM_VANA,
 	CAM_VAF,
+#ifdef CONFIG_ZTEMT_CAMERA
+	CAM_VANA2,
+#endif
+	
 	CAM_VREG_MAX,
 };
 
@@ -489,8 +488,8 @@ enum msm_actuator_cfg_type_t {
 	CFG_GET_ACTUATOR_INFO,
 	CFG_SET_ACTUATOR_INFO,
 	CFG_SET_DEFAULT_FOCUS,
-	CFG_MOVE_FOCUS,
 	CFG_SET_POSITION,
+	CFG_MOVE_FOCUS,
 };
 
 enum actuator_type {
@@ -658,10 +657,10 @@ struct sensor_init_cfg_data {
 	_IOWR('V', BASE_VIDIOC_PRIVATE + 3, uint32_t)
 
 #define VIDIOC_MSM_CSIPHY_IO_CFG \
-	_IOWR('V', BASE_VIDIOC_PRIVATE + 4, struct csiphy_cfg_data)
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 4, struct csid_cfg_data)
 
 #define VIDIOC_MSM_CSID_IO_CFG \
-	_IOWR('V', BASE_VIDIOC_PRIVATE + 5, struct csid_cfg_data)
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 5, struct csiphy_cfg_data)
 
 #define VIDIOC_MSM_ACTUATOR_CFG \
 	_IOWR('V', BASE_VIDIOC_PRIVATE + 6, struct msm_actuator_cfg_data)

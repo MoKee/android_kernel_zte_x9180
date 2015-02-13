@@ -16,7 +16,8 @@
 #include "msm_camera_i2c_mux.h"
 #include "msm_cci.h"
 
-/*#define CONFIG_MSM_CAMERA_DT_DEBUG*/
+#include <linux/of_gpio.h>  //tanyijun add 
+#define CONFIG_MSM_CAMERA_DT_DEBUG
 #undef CDBG
 #ifdef CONFIG_MSM_CAMERA_DT_DEBUG
 #define CDBG(fmt, args...) pr_err(fmt, ##args)
@@ -804,6 +805,26 @@ int msm_camera_init_gpio_pin_tbl(struct device_node *of_node,
 		CDBG("%s qcom,gpio-flash-en %d\n", __func__,
 			gconf->gpio_num_info->gpio_num[SENSOR_GPIO_FL_EN]);
 	}
+#ifdef CONFIG_ZTEMT_CAMERA
+// get avdd enable gpio, tanyijun 
+	gconf->camera_avdd_enable_gpio= of_get_named_gpio(of_node,
+						     "qcom,gpio-avdd-enable", 0);
+
+	printk("~~~tanyijun request reset gpio:gconf->camera_avdd_enable_gpio=%d\n", 
+		gconf->camera_avdd_enable_gpio);
+	
+	if (!gpio_is_valid(gconf->camera_avdd_enable_gpio)) {
+		printk("%s:%d, camera_avdd_enable_gpio gpio not specified\n",
+		          __func__, __LINE__);
+	} else {
+		rc = gpio_request(gconf->camera_avdd_enable_gpio, "camera_avdd_enable_gpio");
+		if (rc) {
+			printk("request camera_avdd_enable_gpiofailed, rc=%d\n", rc);
+			gpio_free(gconf->camera_avdd_enable_gpio);
+			return -ENODEV;
+		}
+	}
+#endif	
 
 	if (of_property_read_bool(of_node, "qcom,gpio-flash-now") == true) {
 		rc = of_property_read_u32(of_node, "qcom,gpio-flash-now", &val);
@@ -1027,6 +1048,22 @@ int msm_camera_power_up(struct msm_camera_power_ctrl_t *ctrl,
 				power_setting->config_val);
 			break;
 		case SENSOR_VREG:
+#ifdef CONFIG_ZTEMT_CAMERA
+			if(power_setting->seq_val==  CAM_VANA)
+			{
+				printk("~~~tanyijun flag \n");
+				gpio_direction_output(14,1);
+				//gpio_direction_output(data->gpio_conf->camera_avdd_enable_gpio,1);
+			}
+			else if(power_setting->seq_val==  CAM_VANA2)
+			{
+				printk("~~~tanyijun flag2~~~~ \n");
+				//gpio_direction_output(14,1);
+				gpio_direction_output(12,1);
+			}
+			else{
+#endif
+			
 			if (power_setting->seq_val >= CAM_VREG_MAX) {
 				pr_err("%s vreg index %d >= max %d\n", __func__,
 					power_setting->seq_val,
@@ -1037,6 +1074,9 @@ int msm_camera_power_up(struct msm_camera_power_ctrl_t *ctrl,
 				&ctrl->cam_vreg[power_setting->seq_val],
 				(struct regulator **)&power_setting->data[0],
 				1);
+#ifdef CONFIG_ZTEMT_CAMERA
+			}
+#endif			
 			break;
 		case SENSOR_I2C_MUX:
 			if (ctrl->i2c_conf && ctrl->i2c_conf->use_i2c_mux)
@@ -1095,10 +1135,28 @@ power_up_failed:
 				[power_setting->seq_val], GPIOF_OUT_INIT_LOW);
 			break;
 		case SENSOR_VREG:
+#ifdef CONFIG_ZTEMT_CAMERA
+			if(power_setting->seq_val==  CAM_VANA)
+			{
+				gpio_direction_output(14,0);
+				//gpio_direction_output(data->gpio_conf->camera_avdd_enable_gpio,0);
+			}
+			else if(power_setting->seq_val==  CAM_VANA2)
+			{
+				gpio_direction_output(12,0);
+				//gpio_direction_output(data->gpio_conf->camera_avdd_enable_gpio,0);
+			}
+			else	{
+#endif		
+			
 			msm_camera_config_single_vreg(ctrl->dev,
 				&ctrl->cam_vreg[power_setting->seq_val],
 				(struct regulator **)&power_setting->data[0],
 				0);
+#ifdef CONFIG_ZTEMT_CAMERA
+			}
+#endif
+
 			break;
 		case SENSOR_I2C_MUX:
 			if (ctrl->i2c_conf && ctrl->i2c_conf->use_i2c_mux)
@@ -1201,6 +1259,7 @@ int msm_camera_power_down(struct msm_camera_power_ctrl_t *ctrl,
 				[pd->config_val]);
 			break;
 		case SENSOR_VREG:
+			break;
 			if (pd->seq_val >= CAM_VREG_MAX) {
 				pr_err("%s vreg index %d >= max %d\n", __func__,
 					pd->seq_val,

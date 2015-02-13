@@ -101,6 +101,13 @@ config MSM_ISPIF_V1
           of any CID of MSM_CSI22_HEADER can be routed to of pixel
           or raw data interface in VFE.
 
+config ZTEMT_CAMERA
+	bool "CONFIG_ZTEMT_CAMERA, add for ztemt project"
+	depends on MSMB_CAMERA
+	default n
+	help
+	  Something add base on project. 
+
 config S5K3L1YX
 	bool "Sensor S5K3L1YX (BAYER 12M)"
 	depends on MSMB_CAMERA

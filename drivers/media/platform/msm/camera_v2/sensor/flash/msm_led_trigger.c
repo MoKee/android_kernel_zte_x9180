@@ -69,6 +69,7 @@ static int32_t msm_led_trigger_config(struct msm_led_flash_ctrl_t *fctrl,
 		break;
 
 	case MSM_CAMERA_LED_LOW:
+		mdelay(5);
 		if (fctrl->torch_trigger) {
 			max_curr_l = fctrl->torch_max_current;
 			if (cfg->torch_current > 0 &&

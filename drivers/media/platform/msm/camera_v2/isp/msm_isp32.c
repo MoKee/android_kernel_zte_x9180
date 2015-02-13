@@ -364,20 +364,29 @@ static uint32_t msm_vfe32_reset_values[ISP_RST_MAX] =
 };
 
 static long msm_vfe32_reset_hardware(struct vfe_device *vfe_dev ,
-				enum msm_isp_reset_type reset_type)
+				enum msm_isp_reset_type reset_type, uint32_t blocking)
 {
-
 	uint32_t rst_val;
+	long rc = 0;
+	
 	if (reset_type >= ISP_RST_MAX) {
 		pr_err("%s: Error Invalid parameter\n", __func__);
 		reset_type = ISP_RST_HARD;
 	}
 	rst_val = msm_vfe32_reset_values[reset_type];
 	init_completion(&vfe_dev->reset_complete);
-	msm_camera_io_w_mb(rst_val, vfe_dev->vfe_base + 0x4);
-	return wait_for_completion_timeout(
-	   &vfe_dev->reset_complete, msecs_to_jiffies(50));
+	if(blocking){
+		msm_camera_io_w_mb(rst_val, vfe_dev->vfe_base + 0xC);
+		rc= wait_for_completion_timeout(
+			&vfe_dev->reset_complete, msecs_to_jiffies(50));
+	} else{
+		msm_camera_io_w_mb(rst_val, vfe_dev->vfe_base + 0xC);
+	}
+	return rc;
 }
+
+
+
 
 static void msm_vfe32_axi_reload_wm(
 	struct vfe_device *vfe_dev, uint32_t reload_mask)
@@ -816,7 +825,7 @@ static void msm_vfe32_update_ping_pong_addr(struct vfe_device *vfe_dev,
 		VFE32_PING_PONG_BASE(wm_idx, pingpong_status));
 }
 
-static long msm_vfe32_axi_halt(struct vfe_device *vfe_dev)
+static long msm_vfe32_axi_halt(struct vfe_device *vfe_dev, uint32_t blocking)
 {
 	uint32_t halt_mask;
 	uint32_t axi_busy_flag = true;
