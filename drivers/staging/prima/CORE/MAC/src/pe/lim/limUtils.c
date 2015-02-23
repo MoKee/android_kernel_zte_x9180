@@ -8065,7 +8065,13 @@ void limPmfSaQueryTimerHandler(void *pMacGlobal, tANI_U32 param)
     pSta->pmfSaQueryRetryCount++;
     if (pSta->pmfSaQueryRetryCount >= maxRetries)
     {
-        limLog(pMac, LOG1, FL("SA Query timed out"));
+        limLog(pMac, LOGE,
+           FL("SA Query timed out,Deleting STA: " MAC_ADDRESS_STR),
+                                     MAC_ADDR_ARRAY(pSta->staAddr));
+        limSendDisassocMgmtFrame(pMac,
+                  eSIR_MAC_DISASSOC_DUE_TO_INACTIVITY_REASON,
+                  pSta->staAddr, psessionEntry, FALSE);
+        limTriggerSTAdeletion(pMac, pSta, psessionEntry);
         pSta->pmfSaQueryState = DPH_SA_QUERY_TIMED_OUT;
         return;
     }
@@ -8391,5 +8397,28 @@ void limParseBeaconForTim(tpAniSirGlobal pMac,tANI_U8* pRxPacketInfo, tpPESessio
               psessionEntry->lastBeaconDtimPeriod);
 
     }
+    return;
+}
+
+void limUpdateMaxRateFlag(tpAniSirGlobal pMac,
+                          tANI_U8 smeSessionId,
+                          tANI_U32 maxRateFlag)
+{
+    tpSirSmeUpdateMaxRateParams  pRsp;
+    tSirMsgQ                     msg;
+
+    pRsp = vos_mem_malloc(sizeof(tSirSmeUpdateMaxRateParams));
+    if (NULL == pRsp)
+    {
+        limLog(pMac, LOGP, FL("Memory allocation failed"));
+        return;
+    }
+    vos_mem_set((tANI_U8*)pRsp, sizeof(tSirSmeUpdateMaxRateParams), 0);
+    pRsp->maxRateFlag = maxRateFlag;
+    pRsp->smeSessionId = smeSessionId;
+    msg.type = eWNI_SME_UPDATE_MAX_RATE_IND;
+    msg.bodyptr = pRsp;
+    msg.bodyval = 0;
+    limSysProcessMmhMsgApi(pMac, &msg,  ePROT);
     return;
 }

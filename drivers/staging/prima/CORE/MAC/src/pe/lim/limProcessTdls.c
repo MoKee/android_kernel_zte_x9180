@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -154,6 +154,9 @@ op_class_map_t global_op_class[] = {
     {125, 20, BW20,      {149, 153, 157, 161, 165, 169}},
     {126, 40, BW40PLUS,  {149, 157}},
     {127, 40, BW40MINUS, {153, 161}},
+    {128, 80, BW80,      {36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112,
+                          116, 120, 124, 128, 132, 136, 140, 144,
+                          149, 153, 157, 161}},
     {0, 0, 0, {0}},
 
 };/*end global_op_class*/
@@ -161,18 +164,22 @@ op_class_map_t global_op_class[] = {
 op_class_map_t us_op_class[] = {
     {1, 20,  BW20,       {36, 40, 44, 48}},
     {2, 20,  BW20,       {52, 56, 60, 64}},
-    {4, 20,  BW20,   {100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140}},
+    {4, 20,  BW20,   {100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 144}},
     {5, 20,  BW20,       {149, 153, 157, 161, 165}},
+    {12, 25, BW20,      {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}},
     {22, 40, BW40PLUS,  {36, 44}},
     {23, 40, BW40PLUS,  {52, 60}},
-    {24, 40, BW40PLUS,  {100, 108, 116, 124, 132}},
+    {24, 40, BW40PLUS,  {100, 108, 116, 124, 132, 140}},
     {26, 40, BW40PLUS,  {149, 157}},
     {27, 40, BW40MINUS, {40, 48}},
     {28, 40, BW40MINUS, {56, 64}},
-    {29, 40, BW40MINUS, {104, 112, 120, 128, 136}},
+    {29, 40, BW40MINUS, {104, 112, 120, 128, 136, 144}},
     {31, 40, BW40MINUS, {153, 161}},
     {32, 40, BW40PLUS,  {1, 2, 3, 4, 5, 6, 7}},
     {33, 40, BW40MINUS, {5, 6, 7, 8, 9, 10, 11}},
+    {128, 80, BW80,     {36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112,
+                         116, 120, 124, 128, 132, 136, 140, 144,
+                         149, 153, 157, 161}},
     {0, 0, 0, {0}},
 };/*end us_op_class*/
 
@@ -190,6 +197,8 @@ op_class_map_t euro_op_class[] = {
     {11, 40, BW40PLUS,  {1, 2, 3, 4, 5, 6, 7, 8, 9}},
     {12, 40, BW40MINUS, {5, 6, 7, 8, 9, 10, 11, 12, 13}},
     {17, 20, BW20,      {149, 153, 157, 161, 165, 169}},
+    {128, 80, BW80,     {36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112,
+                         116, 120, 124, 128}},
     {0, 0, 0, {0}},
 };/*end euro_op_class*/
 
@@ -205,6 +214,8 @@ op_class_map_t japan_op_class[] = {
     {41, 40, BW40MINUS, {40, 48}},
     {42, 40, BW40MINUS, {56, 64}},
     {44, 40, BW40MINUS, {104, 112, 120, 128, 136}},
+    {128, 80, BW80,     {36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112,
+                         116, 120, 124, 128}},
     {0, 0, 0, {0}},
 };/*end japan_op_class*/
 
@@ -999,45 +1010,41 @@ static void PopulateDot11fTdlsHtVhtCap(tpAniSirGlobal pMac, uint32 selfDot11Mode
     {
         /* Include HT Capability IE */
         PopulateDot11fHTCaps( pMac, NULL, htCap );
+        /* Advertize ht capability and max supported channel
+         * bandwidth when populating HT IE in TDLS Setup Request/
+         * Setup Response/Setup Confirmation frames.
+         * 11.21.6.2 Setting up a 40 MHz direct link: A 40 MHz off-channel
+         * direct link may be started if both TDLS peer STAs indicated
+         * 40 MHz support in the Supported Channel Width Set field of the
+         * HT Capabilities element (which is included in the TDLS Setup Request
+         * frame and the TDLS Setup Response frame). Switching to a 40 MHz
+         * off-channel direct link is achieved by including the following
+         * information in the TDLS Channel Switch Request
+         * 11.21.1 General: The channel width of the TDLS direct link on the
+         * base channel shall not exceed the channel width of the BSS to which
+         * the TDLS peer STAs are associated.*/
         htCap->present = 1;
-        if (psessionEntry->currentOperChannel <= SIR_11B_CHANNEL_END)
-        {
-            /* hardcode NO channel bonding in 2.4Ghz */
-            htCap->supportedChannelWidthSet = 0;
-        }
-        else
-        {
-            //Placeholder to support different channel bonding mode of TDLS than AP.
-            //wlan_cfgGetInt(pMac,WNI_CFG_TDLS_CHANNEL_BONDING_MODE,&tdlsChannelBondingMode);
-            //htCap->supportedChannelWidthSet = tdlsChannelBondingMode ? 1 : 0;
-            htCap->supportedChannelWidthSet = 1; // hardcode it to max
-        }
+        htCap->supportedChannelWidthSet = 1; // hardcode it to max
     }
     else
     {
         htCap->present = 0;
     }
+    limLog(pMac, LOG1, FL("HT present = %hu, Chan Width = %hu"),
+            htCap->present, htCap->supportedChannelWidthSet);
 #ifdef WLAN_FEATURE_11AC
-    if (((psessionEntry->currentOperChannel <= SIR_11B_CHANNEL_END) &&
-          pMac->roam.configParam.enableVhtFor24GHz) ||
-         (psessionEntry->currentOperChannel >= SIR_11B_CHANNEL_END))
+    if (IS_DOT11_MODE_VHT(selfDot11Mode) &&
+        IS_FEATURE_SUPPORTED_BY_FW(DOT11AC))
     {
-        if (IS_DOT11_MODE_VHT(selfDot11Mode) &&
-            IS_FEATURE_SUPPORTED_BY_FW(DOT11AC))
-        {
-            /* Include VHT Capability IE */
-            PopulateDot11fVHTCaps( pMac, vhtCap, eSIR_FALSE );
-        }
-        else
-        {
-            vhtCap->present = 0;
-        }
+        /* Include VHT Capability IE */
+        PopulateDot11fVHTCaps( pMac, vhtCap, eSIR_FALSE );
     }
     else
     {
-        /* Vht Disable from ini in 2.4 GHz */
         vhtCap->present = 0;
     }
+    limLog(pMac, LOG1, FL("VHT present = %hu"),
+            vhtCap->present);
 #endif
 }
 
@@ -1051,7 +1058,7 @@ static tSirRetStatus limSendTdlsDisRspFrame(tpAniSirGlobal pMac,
                      tANI_U16 addIeLen)
 {
     tDot11fTDLSDisRsp   tdlsDisRsp ;
-    tANI_U16            caps = 0 ;            
+    tANI_U16            caps = 0 ;
     tANI_U32            status = 0 ;
     tANI_U32            nPayload = 0 ;
     tANI_U32            nBytes = 0 ;
@@ -1065,7 +1072,7 @@ static tSirRetStatus limSendTdlsDisRspFrame(tpAniSirGlobal pMac,
 //  As of now, we hardcoded to max channel bonding of dot11Mode (i.e HT80 for 11ac/HT40 for 11n)
 //  uint32 tdlsChannelBondingMode;
 
-    /* 
+    /*
      * The scheme here is to fill out a 'tDot11fProbeRequest' structure
      * and then hand it off to 'dot11fPackProbeRequest' (for
      * serialization).  We start by zero-initializing the structure:
@@ -1080,7 +1087,7 @@ static tSirRetStatus limSendTdlsDisRspFrame(tpAniSirGlobal pMac,
     tdlsDisRsp.Action.action     = SIR_MAC_TDLS_DIS_RSP ;
     tdlsDisRsp.DialogToken.token = dialog ;
 
-    PopulateDot11fLinkIden( pMac, psessionEntry, &tdlsDisRsp.LinkIdentifier, 
+    PopulateDot11fLinkIden( pMac, psessionEntry, &tdlsDisRsp.LinkIdentifier,
                                            peerMac, TDLS_RESPONDER) ;
 
     if (cfgGetCapabilityInfo(pMac, &caps, psessionEntry) != eSIR_SUCCESS)
@@ -1093,15 +1100,12 @@ static tSirRetStatus limSendTdlsDisRspFrame(tpAniSirGlobal pMac,
     }
     swapBitField16(caps, ( tANI_U16* )&tdlsDisRsp.Capabilities );
 
-    /* populate supported rate IE */
-    PopulateDot11fSuppRates( pMac, POPULATE_DOT11F_RATES_OPERATIONAL, 
-                                     &tdlsDisRsp.SuppRates, psessionEntry );
-   
-    /* Populate extended supported rates */
-    PopulateDot11fExtSuppRates( pMac, POPULATE_DOT11F_RATES_OPERATIONAL,
-                                &tdlsDisRsp.ExtSuppRates, psessionEntry );
+    /* populate supported rate and ext supported rate IE */
+    if (eSIR_FAILURE == PopulateDot11fRatesTdls(pMac, &tdlsDisRsp.SuppRates,
+                               &tdlsDisRsp.ExtSuppRates))
+        limLog(pMac, LOGE, FL("could not populate supported data rates"));
 
-    /* Populate extended supported rates */
+    /* Populate extended capability IE */
     PopulateDot11fTdlsExtCapability( pMac, &tdlsDisRsp.ExtCap );
 
     wlan_cfgGetInt(pMac,WNI_CFG_DOT11_MODE,&selfDot11Mode);
@@ -1360,15 +1364,11 @@ tSirRetStatus limSendTdlsLinkSetupReqFrame(tpAniSirGlobal pMac,
 
     swapBitField16(caps, ( tANI_U16* )&tdlsSetupReq.Capabilities );
 
-    /* populate supported rate IE */
-    PopulateDot11fSuppRates( pMac, POPULATE_DOT11F_RATES_OPERATIONAL,
-                              &tdlsSetupReq.SuppRates, psessionEntry );
+    /* populate supported rate and ext supported rate IE */
+    PopulateDot11fRatesTdls(pMac, &tdlsSetupReq.SuppRates,
+                               &tdlsSetupReq.ExtSuppRates);
 
-    /* Populate extended supported rates */
-    PopulateDot11fExtSuppRates( pMac, POPULATE_DOT11F_RATES_OPERATIONAL,
-                                &tdlsSetupReq.ExtSuppRates, psessionEntry );
-
-    /* Populate extended supported rates */
+    /* Populate extended capability IE */
     PopulateDot11fTdlsExtCapability( pMac, &tdlsSetupReq.ExtCap );
 
     if ( 1 == pMac->lim.gLimTDLSWmmMode )
@@ -1751,13 +1751,13 @@ tSirRetStatus limSendTdlsTeardownFrame(tpAniSirGlobal pMac,
 /*
  * Send Setup RSP frame on AP link.
  */
-static tSirRetStatus limSendTdlsSetupRspFrame(tpAniSirGlobal pMac, 
-                    tSirMacAddr peerMac, tANI_U8 dialog, tpPESession psessionEntry, 
+static tSirRetStatus limSendTdlsSetupRspFrame(tpAniSirGlobal pMac,
+                    tSirMacAddr peerMac, tANI_U8 dialog, tpPESession psessionEntry,
                     etdlsLinkSetupStatus setupStatus, tANI_U8 *addIe, tANI_U16 addIeLen )
 {
     tDot11fTDLSSetupRsp  tdlsSetupRsp ;
     tANI_U32            status = 0 ;
-    tANI_U16            caps = 0 ;            
+    tANI_U16            caps = 0 ;
     tANI_U32            nPayload = 0 ;
     tANI_U32            header_offset = 0 ;
     tANI_U32            nBytes = 0 ;
@@ -1772,7 +1772,7 @@ static tSirRetStatus limSendTdlsSetupRspFrame(tpAniSirGlobal pMac,
 //  As of now, we hardcoded to max channel bonding of dot11Mode (i.e HT80 for 11ac/HT40 for 11n)
 //  uint32 tdlsChannelBondingMode;
 
-    /* 
+    /*
      * The scheme here is to fill out a 'tDot11fProbeRequest' structure
      * and then hand it off to 'dot11fPackProbeRequest' (for
      * serialization).  We start by zero-initializing the structure:
@@ -1804,15 +1804,11 @@ static tSirRetStatus limSendTdlsSetupRspFrame(tpAniSirGlobal pMac,
 
     swapBitField16(caps, ( tANI_U16* )&tdlsSetupRsp.Capabilities );
 
-    /* ipopulate supported rate IE */
-    PopulateDot11fSuppRates( pMac, POPULATE_DOT11F_RATES_OPERATIONAL, 
-                                &tdlsSetupRsp.SuppRates, psessionEntry );
-   
-    /* Populate extended supported rates */
-    PopulateDot11fExtSuppRates( pMac, POPULATE_DOT11F_RATES_OPERATIONAL,
-                                &tdlsSetupRsp.ExtSuppRates, psessionEntry );
+    /* populate supported rate and ext supported rate IE */
+    PopulateDot11fRatesTdls(pMac, &tdlsSetupRsp.SuppRates,
+                                &tdlsSetupRsp.ExtSuppRates);
 
-    /* Populate extended supported rates */
+    /* Populate extended capability IE */
     PopulateDot11fTdlsExtCapability( pMac, &tdlsSetupRsp.ExtCap );
 
     if ( 1 == pMac->lim.gLimTDLSWmmMode )
@@ -2027,13 +2023,8 @@ tSirRetStatus limSendTdlsLinkSetupCnfFrame(tpAniSirGlobal pMac, tSirMacAddr peer
     tdlsSetupCnf.Action.action     = SIR_MAC_TDLS_SETUP_CNF ;
     tdlsSetupCnf.DialogToken.token = dialog ;
 
-#if 1
     PopulateDot11fLinkIden( pMac, psessionEntry, &tdlsSetupCnf.LinkIdentifier,
                       peerMac, TDLS_INITIATOR) ;
-#else
-    vos_mem_copy( (tANI_U8 *)&tdlsSetupCnf.LinkIdentifier,
-                  (tANI_U8 *)&setupRsp->LinkIdentifier, sizeof(tDot11fIELinkIdentifier)) ;
-#endif
 
     /* 
      * TODO: we need to see if we have to support conditions where we have
@@ -2900,11 +2891,21 @@ static void limTdlsUpdateHashNodeInfo(tpAniSirGlobal pMac, tDphHashNode *pStaDs,
     {
         pStaDs->mlmStaContext.vhtCapability = 1 ;
 
-        if ((psessionEntry->currentOperChannel <= SIR_11B_CHANNEL_END) &&
-            pMac->roam.configParam.enableVhtFor24GHz)
+        if (psessionEntry->currentOperChannel <= SIR_11B_CHANNEL_END)
         {
+            /* if the channel is 2G then update the min channel widthset in
+             * pStaDs. These values are used when sending a AddSta request to
+             * firmware
+             * 11.21.1 General: The channel width of the TDLS direct link on the
+             * base channel shall not exceed the channel width of the BSS to which
+             * the TDLS peer STAs are associated.*/
             pStaDs->vhtSupportedChannelWidthSet = WNI_CFG_VHT_CHANNEL_WIDTH_20_40MHZ;
             pStaDs->htSupportedChannelWidthSet = eHT_CHANNEL_WIDTH_20MHZ;
+            limLog(pMac, LOG1,
+                    FL("vhtSupportedChannelWidthSet = %hu,"
+                        " htSupportedChannelWidthSet %hu"),
+                    pStaDs->vhtSupportedChannelWidthSet,
+                    pStaDs->htSupportedChannelWidthSet) ;
         }
         else
         {
@@ -3471,7 +3472,6 @@ static tSirRetStatus limProcessTdlsSetupReqFrame(tpAniSirGlobal pMac,
             
                 break ;
             }
-#if 1
             case TDLS_LINK_SETUP_DONE_STATE:
             {
                 tpDphHashNode pStaDs = NULL ;
@@ -3522,7 +3522,6 @@ static tSirRetStatus limProcessTdlsSetupReqFrame(tpAniSirGlobal pMac,
                         ("link Setup is Recieved in unknown state" )) ;
                 break ;
             }
-#endif
         }
         if(tdlsStateStatus == TDLS_LINK_SETUP_START_STATE) 
             return eSIR_FAILURE ;
@@ -4375,7 +4374,7 @@ static tpDphHashNode limTdlsDelSta(tpAniSirGlobal pMac, tSirMacAddr peerMac,
                            pStaDs->staType,
                            pStaDs->staIndex);
         limDeleteBASessions(pMac, psessionEntry, BA_BOTH_DIRECTIONS,
-                            eSIR_MAC_TDLS_TEARDOWN_UNSPEC_REASON);
+                            eSIR_MAC_PEER_TIMEDOUT_REASON);
         status = limDelSta(pMac, pStaDs, false, psessionEntry) ;
 #ifdef FEATURE_WLAN_TDLS_INTERNAL
         if(eSIR_SUCCESS == status)
@@ -4451,12 +4450,11 @@ static tSirRetStatus limTdlsLinkEstablish(tpAniSirGlobal pMac, tSirMacAddr peerM
     tdlsPtiTemplate.Category.category = SIR_MAC_ACTION_TDLS;
     tdlsPtiTemplate.Action.action     = SIR_MAC_TDLS_PEER_TRAFFIC_IND;
     tdlsPtiTemplate.DialogToken.token = 0 ; /* filled by firmware at the time of transmission */
-#if 1 
     /* CHECK_PTI_LINK_IDENTIFIER_INITIATOR_ADDRESS: initator address should be TDLS link setup's initiator address, 
     then below code makes such an way */
     PopulateDot11fLinkIden( pMac, psessionEntry, &tdlsPtiTemplate.LinkIdentifier,
         peerMac, !setupPeer->tdls_bIsResponder) ;
-#else
+#if 0
    /* below code will make PTI's linkIdentifier's initiator address be selfAddr */
     PopulateDot11fLinkIden( pMac, psessionEntry, &tdlsPtiTemplate.LinkIdentifier,
         peerMac, TDLS_INITIATOR) ;
@@ -5069,7 +5067,7 @@ void PopulateDot11fTdlsOffchannelParams(tpAniSirGlobal pMac,
 {
     tANI_U32   numChans = WNI_CFG_VALID_CHANNEL_LIST_LEN;
     tANI_U8    validChan[WNI_CFG_VALID_CHANNEL_LIST_LEN];
-    tANI_U8    i;
+    tANI_U8    i, j;
     tANI_U8    op_class;
     if (wlan_cfgGetStr(pMac, WNI_CFG_VALID_CHANNEL_LIST,
                           validChan, &numChans) != eSIR_SUCCESS)
@@ -5082,11 +5080,17 @@ void PopulateDot11fTdlsOffchannelParams(tpAniSirGlobal pMac,
     }
     suppChannels->num_bands = (tANI_U8) numChans;
 
-    for ( i = 0U; i < suppChannels->num_bands; i++)
+    for ( i = 0U, j = 0U; i < suppChannels->num_bands; i++)
     {
-        suppChannels->bands[i][0] = validChan[i];
-        suppChannels->bands[i][1] = 1;
+        /* don't populate dfs channels in supported channels ie */
+        if (!LIM_IS_CHANNEL_DFS(validChan[i])) {
+            suppChannels->bands[j][0] = validChan[i];
+            suppChannels->bands[j][1] = 1;
+            j++;
+        }
     }
+    /* update the channel list with new length */
+    suppChannels->num_bands = j;
     suppChannels->present = 1 ;
     /*Get present operating class based on current operating channel*/
     op_class = limGetOPClassFromChannel(
@@ -5812,6 +5816,53 @@ tSirRetStatus limDeleteTDLSPeers(tpAniSirGlobal pMac, tpPESession psessionEntry)
 }
 
 
+tANI_U8 limGetOffChMaxBwOffsetFromChannel(tANI_U8 *country,
+                                          tANI_U8 channel,
+                                          tANI_U8 peerVHTCapability)
+{
+    op_class_map_t *class = NULL;
+    tANI_U16 i = 0;
+    offset_t offset = BW20, max_allowed = BW80;
+
+    if ((TRUE == peerVHTCapability) &&
+        IS_FEATURE_SUPPORTED_BY_FW(DOT11AC) &&
+        IS_FEATURE_SUPPORTED_BY_DRIVER(DOT11AC))
+        max_allowed = BW80;
+    else
+        max_allowed = BW40MINUS;
+
+    if (VOS_TRUE == vos_mem_compare(country,"US", 2))  {
+
+        class = us_op_class;
+
+    } else if (VOS_TRUE == vos_mem_compare(country,"EU", 2)) {
+
+        class = euro_op_class;
+
+    } else if (VOS_TRUE == vos_mem_compare(country,"JP", 2)) {
+
+        class = japan_op_class;
+
+    } else {
+
+        class = global_op_class;
+
+    }
+
+    while (class->op_class)
+    {
+        for (i=0; (i < 25 && class->channels[i]); i++)
+        {
+            if (channel == class->channels[i] && class->offset <= max_allowed)
+                offset = class->offset;
+        }
+        class++;
+    }
+
+    return offset;
+}
+
+
 tANI_U8 limGetOPClassFromChannel(tANI_U8 *country,
                                          tANI_U8 channel,
                                          tANI_U8 offset)
@@ -5841,7 +5892,7 @@ tANI_U8 limGetOPClassFromChannel(tANI_U8 *country,
     {
         if ((offset == class->offset) || (offset == BWALL))
         {
-            for (i=0; (i < 15 && class->channels[i]); i++)
+            for (i=0; (i < 25 && class->channels[i]); i++)
             {
                 if (channel == class->channels[i])
                     return class->op_class;
@@ -6047,6 +6098,34 @@ tSirRetStatus limProcesSmeTdlsChanSwitchReq(tpAniSirGlobal pMac,
 
     vos_mem_set( (tANI_U8 *)pMsgTdlsChanSwitch, sizeof(tpTdlsChanSwitchParams), 0);
 
+    /* if channel bw offset is not set,
+       send maximum supported offset in the band */
+    if (pTdlsChanSwitch->tdlsOffChBwOffset == 0)
+    {
+        VOS_TRACE(VOS_MODULE_ID_PE, VOS_TRACE_LEVEL_INFO,
+                  ("Set TDLS channel Bw Offset"));
+
+        if ((pTdlsChanSwitch->tdlsOffCh >= 1) &&
+            (pTdlsChanSwitch->tdlsOffCh <= 14))
+        {
+            pTdlsChanSwitch->tdlsOffChBwOffset = BW20;
+        }
+        else if ((pTdlsChanSwitch->tdlsOffCh >= 36) &&
+                 (pTdlsChanSwitch->tdlsOffCh <= 169))
+        {
+            pTdlsChanSwitch->tdlsOffChBwOffset =
+                                limGetOffChMaxBwOffsetFromChannel(
+                                              pMac->scan.countryCodeCurrent,
+                                              pTdlsChanSwitch->tdlsOffCh,
+                                              pStaDs->mlmStaContext.vhtCapability);
+        }
+    }
+    else
+    {
+        /* Channel Bandwidth Offset is set through iwpriv ioctl */
+        (pTdlsChanSwitch->tdlsOffChBwOffset)--;
+    }
+
     pMsgTdlsChanSwitch->staIdx = pStaDs->staIndex;
     pMsgTdlsChanSwitch->tdlsOffCh = pTdlsChanSwitch->tdlsOffCh;
     pMsgTdlsChanSwitch->tdlsOffChBwOffset = pTdlsChanSwitch->tdlsOffChBwOffset;
@@ -6055,6 +6134,7 @@ tSirRetStatus limProcesSmeTdlsChanSwitchReq(tpAniSirGlobal pMac,
                                            pMac->scan.countryCodeCurrent,
                                            pTdlsChanSwitch->tdlsOffCh,
                                            pTdlsChanSwitch->tdlsOffChBwOffset);
+
     if(pMsgTdlsChanSwitch->operClass == 0)
     {
 
@@ -6067,13 +6147,16 @@ tSirRetStatus limProcesSmeTdlsChanSwitchReq(tpAniSirGlobal pMac,
     {
 
         VOS_TRACE(VOS_MODULE_ID_PE, VOS_TRACE_LEVEL_INFO,
-              "%s: TDLS Channel Switch params: staIdx %d class %d ch %d bw %d mode %d",
+              "%s: TDLS Channel Switch params: staIdx %d class %d ch %d bw %d"
+              " mode %d country code %c%c",
                __func__,
                pMsgTdlsChanSwitch->staIdx,
                pMsgTdlsChanSwitch->operClass,
                pMsgTdlsChanSwitch->tdlsOffCh,
                pMsgTdlsChanSwitch->tdlsOffChBwOffset,
-               pMsgTdlsChanSwitch->tdlsSwMode);
+               pMsgTdlsChanSwitch->tdlsSwMode,
+               pMac->scan.countryCodeCurrent[0],
+               pMac->scan.countryCodeCurrent[1]);
     }
 
     msg.type = WDA_SET_TDLS_CHAN_SWITCH_REQ;

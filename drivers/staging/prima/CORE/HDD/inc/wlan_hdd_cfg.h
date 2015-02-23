@@ -34,9 +34,6 @@
 
   \brief Android WLAN Adapter Configuration functions
 
-               Copyright 2008 (c) Qualcomm, Incorporated.
-               All Rights Reserved.
-               Qualcomm Confidential and Proprietary.
 
   ==========================================================================*/
 
@@ -518,7 +515,7 @@ typedef enum
 
 #define CFG_AP_KEEP_ALIVE_PERIOD_NAME          "gApKeepAlivePeriod"
 #define CFG_AP_KEEP_ALIVE_PERIOD_MIN           ( 3 )
-#define CFG_AP_KEEP_ALIVE_PERIOD_MAX           ( 20 )
+#define CFG_AP_KEEP_ALIVE_PERIOD_MAX           ( 255 )
 #define CFG_AP_KEEP_ALIVE_PERIOD_DEFAULT       ( 5 )
 
 #define CFG_GO_KEEP_ALIVE_PERIOD_NAME          "gGoKeepAlivePeriod"
@@ -1251,6 +1248,11 @@ typedef enum
 #define CFG_BCN_EARLY_TERM_WAKE_MIN                  ( 2 )
 #define CFG_BCN_EARLY_TERM_WAKE_MAX                  ( 255 )
 #define CFG_BCN_EARLY_TERM_WAKE_DEFAULT              ( 3 )
+
+#define CFG_ENABLE_ROAM_DELAY_STATS                  "gEnableRoamDelayStats"
+#define CFG_ENABLE_ROAM_DELAY_STATS_MIN              ( 0 )
+#define CFG_ENABLE_ROAM_DELAY_STATS_MAX              ( 1 )
+#define CFG_ENABLE_ROAM_DELAY_STATS_DEFAULT          ( 0 )
 
 #ifdef WLAN_FEATURE_NEIGHBOR_ROAMING
 #define CFG_NEIGHBOR_SCAN_TIMER_PERIOD_NAME             "gNeighborScanTimerPeriod"
@@ -2539,6 +2541,7 @@ typedef struct
    v_BOOL_t      fFTResourceReqSupported;
 #endif
 
+   v_BOOL_t      gEnableRoamDelayStats;
 #ifdef WLAN_FEATURE_NEIGHBOR_ROAMING
    v_U16_t       nNeighborScanPeriod;
    v_U8_t        nNeighborReassocRssiThreshold;

@@ -1237,6 +1237,9 @@ typedef struct
 
   /* reason for WDI_DetectedDeviceError */
   void *                        DeviceErrorReason;
+
+   /* Roam delay statistic enabled in ini*/
+   wpt_uint8                  roamDelayStatsEnabled;
 }WDI_ControlBlockType; 
 
 

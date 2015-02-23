@@ -74,7 +74,7 @@
 
 #include "sapApi.h"
 #include "vos_trace.h"
-
+#include "vos_utils.h"
 
 
 #ifdef WLAN_BTAMP_FEATURE
@@ -419,6 +419,13 @@ VOS_STATUS vos_open( v_CONTEXT_t *pVosContext, void *devHandle )
                "%s: Failed to open TL", __func__);
      VOS_ASSERT(0);
      goto err_sme_close;
+   }
+
+   if (gpVosContext->roamDelayStatsEnabled &&
+       !vos_roam_delay_stats_init())
+   {
+       VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
+                 "%s: Could not init roamDelayStats", __func__);
    }
 
    VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_INFO_HIGH,
@@ -974,6 +981,13 @@ VOS_STATUS vos_close( v_CONTEXT_t vosContext )
      VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
          "%s: failed to destroy ProbeEvent", __func__);
      VOS_ASSERT( VOS_IS_STATUS_SUCCESS( vosStatus ) );
+  }
+
+  if (gpVosContext->roamDelayStatsEnabled &&
+      !vos_roam_delay_stats_deinit())
+  {
+      VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
+                "%s: Could not deinit roamDelayStats", __func__);
   }
 
   return VOS_STATUS_SUCCESS;
@@ -2189,18 +2203,19 @@ VOS_STATUS vos_wlanRestart(void)
   This function is called to issue dump commands to Firmware
 
   @param
-       cmd - Command No. to execute
-       arg1 - argument 1 to cmd
-       arg2 - argument 2 to cmd
-       arg3 - argument 3 to cmd
-       arg4 - argument 4 to cmd
+       cmd     -  Command No. to execute
+       arg1    -  argument 1 to cmd
+       arg2    -  argument 2 to cmd
+       arg3    -  argument 3 to cmd
+       arg4    -  argument 4 to cmd
+       async   -  asynchronous event. Don't wait for completion.
   @return
        NONE
 */
 v_VOID_t vos_fwDumpReq(tANI_U32 cmd, tANI_U32 arg1, tANI_U32 arg2,
-                        tANI_U32 arg3, tANI_U32 arg4)
+                        tANI_U32 arg3, tANI_U32 arg4, tANI_U8 async)
 {
-   WDA_HALDumpCmdReq(NULL, cmd, arg1, arg2, arg3, arg4, NULL);
+   WDA_HALDumpCmdReq(NULL, cmd, arg1, arg2, arg3, arg4, NULL, 0);
 }
 
 v_U64_t vos_get_monotonic_boottime(void)
@@ -2255,4 +2270,39 @@ v_BOOL_t vos_is_wlan_in_badState(VOS_MODULE_ID moduleId,
         return TRUE;
     }
     return pVosWDCtx->isFatalError;
+}
+
+/**---------------------------------------------------------------------------
+
+  \brief vos_set_roam_delay_stats_enabled() -
+
+  API to set value of roamDelayStatsEnabled in vos context
+
+  \param  -  value to be updated
+
+  \return -  NONE
+
+  --------------------------------------------------------------------------*/
+
+v_VOID_t  vos_set_roam_delay_stats_enabled(v_U8_t value)
+{
+    gpVosContext->roamDelayStatsEnabled = value;
+}
+
+
+/**---------------------------------------------------------------------------
+
+  \brief vos_get_roam_delay_stats_enabled() -
+
+  API to get value of roamDelayStatsEnabled from vos context
+
+  \param  -  NONE
+
+  \return -  value of roamDelayStatsEnabled
+
+  --------------------------------------------------------------------------*/
+
+v_U8_t  vos_get_roam_delay_stats_enabled(v_VOID_t)
+{
+    return gpVosContext->roamDelayStatsEnabled;
 }

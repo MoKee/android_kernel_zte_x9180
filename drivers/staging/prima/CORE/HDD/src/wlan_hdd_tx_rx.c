@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -30,9 +30,6 @@
   \file  wlan_hdd_tx_rx.c
   
   \brief Linux HDD Tx/RX APIs
-         Copyright 2008 (c) Qualcomm, Incorporated.
-         All Rights Reserved.
-         Qualcomm Confidential and Proprietary.
   
   ==========================================================================*/
   
@@ -63,9 +60,7 @@
 #include "wlan_hdd_tdls.h"
 #endif
 
-#ifdef DEBUG_ROAM_DELAY
 #include "vos_utils.h"
-#endif
 #include  "sapInternal.h"
 #include  "wlan_hdd_trace.h"
 /*--------------------------------------------------------------------------- 
@@ -90,6 +85,7 @@ const v_U8_t hdd_QdiscAcToTlAC[] = {
 #define HDD_TX_TIMEOUT_RATELIMIT_INTERVAL 20*HZ
 #define HDD_TX_TIMEOUT_RATELIMIT_BURST    1
 #define HDD_TX_STALL_SSR_THRESHOLD        5
+#define HDD_TX_STALL_SSR_THRESHOLD_HIGH   13
 #define HDD_TX_STALL_RECOVERY_THRESHOLD HDD_TX_STALL_SSR_THRESHOLD - 2
 
 static DEFINE_RATELIMIT_STATE(hdd_tx_timeout_rs,                 \
@@ -382,6 +378,8 @@ void hdd_mon_tx_mgmt_pkt(hdd_adapter_t* pAdapter)
    struct sk_buff* skb;
    hdd_adapter_t* pMonAdapter = NULL;
    struct ieee80211_hdr *hdr;
+   hdd_context_t *pHddCtx;
+   int ret = 0;
 
    if (pAdapter == NULL)
    {
@@ -390,7 +388,14 @@ void hdd_mon_tx_mgmt_pkt(hdd_adapter_t* pAdapter)
       VOS_ASSERT(0);
       return;
    }
-
+   pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
+   ret = wlan_hdd_validate_context(pHddCtx);
+   if (0 != ret)
+   {
+       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                 "%s: HDD context is not valid, ret =%d",__func__, ret);
+       return;
+   }
    pMonAdapter = hdd_get_adapter( pAdapter->pHddCtx, WLAN_HDD_MONITOR );
    if (pMonAdapter == NULL)
    {
@@ -476,10 +481,17 @@ fail:
    return;
 }
 
-void hdd_mon_tx_work_queue(struct work_struct *work)
+void __hdd_mon_tx_work_queue(struct work_struct *work)
 {
    hdd_adapter_t* pAdapter = container_of(work, hdd_adapter_t, monTxWorkQueue);
    hdd_mon_tx_mgmt_pkt(pAdapter);
+}
+
+void hdd_mon_tx_work_queue(struct work_struct *work)
+{
+   vos_ssr_protect(__func__);
+   __hdd_mon_tx_work_queue(work);
+   vos_ssr_unprotect(__func__);
 }
 
 int hdd_mon_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
@@ -764,6 +776,12 @@ int hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
    v_BOOL_t txSuspended = VOS_FALSE;
    struct sk_buff *skb1;
 
+   if (NULL == pHddCtx) {
+       VOS_TRACE( VOS_MODULE_ID_HDD_DATA, VOS_TRACE_LEVEL_ERROR,
+                  "%s HDD context is NULL", __func__);
+       return NETDEV_TX_BUSY;
+   }
+
    ++pAdapter->hdd_stats.hddTxRxStats.txXmitCalled;
 
    if (unlikely(netif_subqueue_stopped(dev, skb))) {
@@ -839,15 +857,10 @@ int hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
               "%s: Classified as ac %d up %d", __func__, ac, up);
 #endif // HDD_WMM_DEBUG
 
-#ifdef DEBUG_ROAM_DELAY
-   vos_record_roam_event(e_HDD_FIRST_XMIT_TIME, (void *)skb, 0);
-   //Should we check below global to avoid function call each time ??
-/*
-   if(gRoamDelayMetaInfo.hdd_monitor_tx)
+   if (pHddCtx->cfg_ini->gEnableRoamDelayStats)
    {
+       vos_record_roam_event(e_HDD_FIRST_XMIT_TIME, (void *)skb, 0);
    }
- */
-#endif
 
    spin_lock(&pAdapter->wmm_tx_queue[ac].lock);
    /*CR 463598,384996*/
@@ -970,7 +983,9 @@ int hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
       status = hdd_wmm_acquire_access( pAdapter, ac, &granted );
       pAdapter->psbChanged |= (1 << ac);
    }
-   if ( granted && ( pktListSize == 1 ))
+
+   if ( (granted && ( pktListSize == 1 )) ||
+        (pHddStaCtx->conn_info.uIsAuthenticated == VOS_FALSE))
    {
       //Let TL know we have a packet to send for this AC
       //VOS_TRACE( VOS_MODULE_ID_HDD_DATA, VOS_TRACE_LEVEL_ERROR,"%s:Indicating Packet to TL", __func__);
@@ -1044,7 +1059,9 @@ VOS_STATUS hdd_Ibss_GetStaId(hdd_station_ctx_t *pHddStaCtx, v_MACADDR_t *pMacAdd
 void __hdd_tx_timeout(struct net_device *dev)
 {
    hdd_adapter_t *pAdapter =  WLAN_HDD_GET_PRIV_PTR(dev);
+   hdd_context_t *pHddCtx;
    struct netdev_queue *txq;
+   hdd_remain_on_chan_ctx_t *pRemainChanCtx;
    int i = 0;
    v_ULONG_t diff_in_jiffies = 0;
 
@@ -1056,6 +1073,15 @@ void __hdd_tx_timeout(struct net_device *dev)
    {
       VOS_TRACE( VOS_MODULE_ID_HDD_DATA, VOS_TRACE_LEVEL_ERROR,
               FL("pAdapter is NULL"));
+      VOS_ASSERT(0);
+      return;
+   }
+
+   pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
+   if (NULL == pHddCtx)
+   {
+      VOS_TRACE( VOS_MODULE_ID_HDD_DATA, VOS_TRACE_LEVEL_ERROR,
+              FL("HDD context is NULL"));
       VOS_ASSERT(0);
       return;
    }
@@ -1081,7 +1107,7 @@ void __hdd_tx_timeout(struct net_device *dev)
               pAdapter->isTxSuspended[2],
               pAdapter->isTxSuspended[3]);
 
-   for (i = 0; i < 8; i++)
+   for (i = 0; i < dev->num_tx_queues; i++)
    {
       txq = netdev_get_tx_queue(dev, i);
       VOS_TRACE( VOS_MODULE_ID_HDD_DATA, VOS_TRACE_LEVEL_ERROR,
@@ -1128,15 +1154,41 @@ void __hdd_tx_timeout(struct net_device *dev)
       WLANTL_TLDebugMessage(WLANTL_DEBUG_FW_CLEANUP);
    }
 
-   if (pAdapter->hdd_stats.hddTxRxStats.continuousTxTimeoutCount >
-       HDD_TX_STALL_SSR_THRESHOLD)
+   pRemainChanCtx = hdd_get_remain_on_channel_ctx(pHddCtx);
+   if (!pRemainChanCtx)
    {
-       // Driver could not recover, issue SSR
-       VOS_TRACE(VOS_MODULE_ID_HDD_DATA, VOS_TRACE_LEVEL_ERROR,
-                 "%s: Cannot recover from Data stall Issue SSR",
-                   __func__);
-       WLANTL_FatalError();
-       return;
+      if (pAdapter->hdd_stats.hddTxRxStats.continuousTxTimeoutCount >
+          HDD_TX_STALL_SSR_THRESHOLD)
+      {
+          // Driver could not recover, issue SSR
+          VOS_TRACE(VOS_MODULE_ID_HDD_DATA, VOS_TRACE_LEVEL_ERROR,
+                    "%s: Cannot recover from Data stall Issue SSR",
+                      __func__);
+          WLANTL_FatalError();
+          return;
+      }
+   }
+   else
+   {
+      VOS_TRACE(VOS_MODULE_ID_HDD_DATA, VOS_TRACE_LEVEL_ERROR,
+                "Remain on channel in progress");
+      /* The supplicant can retry "P2P Invitation Request" for 120 times
+       * and so there is a possbility that we can remain off channel for
+       * the entire duration of these retries(which can be max 60sec).
+       * If we encounter such a case, let us not trigger SSR after 30sec
+       * but wait for 60sec to let the device go on home channel and start
+       * tx. If tx does not start within 70sec we will issue SSR.
+       */
+      if (pAdapter->hdd_stats.hddTxRxStats.continuousTxTimeoutCount >
+          HDD_TX_STALL_SSR_THRESHOLD_HIGH)
+      {
+          // Driver could not recover, issue SSR
+          VOS_TRACE(VOS_MODULE_ID_HDD_DATA, VOS_TRACE_LEVEL_ERROR,
+                    "%s: Cannot recover from Data stall Issue SSR",
+                      __func__);
+          WLANTL_FatalError();
+          return;
+      }
    }
 
    /* If Tx stalled for a long time then *hdd_tx_timeout* is called
@@ -1316,6 +1368,50 @@ v_BOOL_t hdd_IsEAPOLPacket( vos_pkt_t *pVosPacket )
     }  
     
    return fEAPOL;
+}
+
+/**============================================================================
+  @brief hdd_FindEapolSubType() - Find EAPOL SubType.
+
+  @param pVosPacket : [in] pointer to vos packet
+  @return         : EAPOL_SubType value
+  ===========================================================================*/
+EAPOL_SubType hdd_FindEapolSubType( vos_pkt_t *pVosPacket )
+{
+    VOS_STATUS vosStatus  = VOS_STATUS_SUCCESS;
+    void       *pBuffer   = NULL;
+    EAPOL_SubType   subType = EAPOL_UNKNOWN;
+    v_U16_t   keyInfo;
+    vosStatus = vos_pkt_peek_data( pVosPacket,
+                         (v_SIZE_t)HDD_ETHERTYPE_802_1_X_FRAME_SUB_TYPE_OFFSET,
+                         &pBuffer, HDD_ETHERTYPE_802_1_X_SIZE );
+    if ( VOS_IS_STATUS_SUCCESS( vosStatus ) )
+    {
+       if ( pBuffer )
+       {
+          keyInfo = (*(unsigned short*)pBuffer &
+                         HDD_ETHERTYPE_802_1_X_SUB_TYPE_MASK);
+
+          switch (keyInfo) {
+            case HDD_ETHERTYPE_802_1_X_M1_VALUE:
+                 subType = EAPOL_M1;
+                 break;
+            case HDD_ETHERTYPE_802_1_X_M2_VALUE:
+                 subType = EAPOL_M2;
+                 break;
+            case HDD_ETHERTYPE_802_1_X_M3_VALUE:
+                 subType = EAPOL_M3;
+                 break;
+            case HDD_ETHERTYPE_802_1_X_M4_VALUE:
+                 subType = EAPOL_M4;
+                 break;
+            default:
+                 break;
+         }
+       }
+    }
+
+   return subType;
 }
 
 /**============================================================================
@@ -1674,8 +1770,12 @@ VOS_STATUS hdd_tx_fetch_packet_cbk( v_VOID_t *vosContext,
    
    if(pAdapter->sessionCtx.station.conn_info.uIsAuthenticated == VOS_TRUE)
       pPktMetaInfo->ucIsEapol = 0;       
-   else 
+   else
+   {
       pPktMetaInfo->ucIsEapol = hdd_IsEAPOLPacket( pVosPacket ) ? 1 : 0;
+      if(pPktMetaInfo->ucIsEapol)
+         pPktMetaInfo->ucEapolSubType = hdd_FindEapolSubType( pVosPacket );
+   }
 
    if ((NULL != pHddCtx) &&
        (pHddCtx->cfg_ini->gEnableDebugLog))
@@ -1685,7 +1785,7 @@ VOS_STATUS hdd_tx_fetch_packet_cbk( v_VOID_t *vosContext,
       if (VOS_PKT_PROTO_TYPE_EAPOL & proto_type)
       {
          VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
-                   "STA TX EAPOL");
+                   "STA TX EAPOL SubType %d",pPktMetaInfo->ucEapolSubType);
       }
       else if (VOS_PKT_PROTO_TYPE_DHCP & proto_type)
       {
@@ -1743,9 +1843,10 @@ VOS_STATUS hdd_tx_fetch_packet_cbk( v_VOID_t *vosContext,
                 pktNode->userPriority, pPktMetaInfo->ucUP);
    }
 
-#ifdef DEBUG_ROAM_DELAY
-   vos_record_roam_event(e_TL_FIRST_XMIT_TIME, NULL, 0);
-#endif
+   if (pHddCtx->cfg_ini->gEnableRoamDelayStats)
+   {
+       vos_record_roam_event(e_TL_FIRST_XMIT_TIME, NULL, 0);
+   }
 
    pPktMetaInfo->ucType = 0;          //FIXME Don't know what this is
    pPktMetaInfo->ucDisableFrmXtl = 0; //802.3 frame so we need to xlate
@@ -1936,6 +2037,7 @@ VOS_STATUS hdd_rx_packet_cbk( v_VOID_t *vosContext,
    vos_pkt_t* pVosPacket;
    vos_pkt_t* pNextVosPacket;
    v_U8_t proto_type;
+   EAPOL_SubType eapolSubType;
 
    //Sanity check on inputs
    if ( ( NULL == vosContext ) || 
@@ -1981,6 +2083,12 @@ VOS_STATUS hdd_rx_packet_cbk( v_VOID_t *vosContext,
          VOS_TRACE( VOS_MODULE_ID_HDD_DATA, VOS_TRACE_LEVEL_ERROR,
                          "%s: Failure walking packet chain", __func__);
          return VOS_STATUS_E_FAILURE;
+      }
+
+      if (pHddCtx->cfg_ini->gEnableDebugLog)
+      {
+         if (hdd_IsEAPOLPacket(pVosPacket))
+             eapolSubType = hdd_FindEapolSubType(pVosPacket);
       }
 
       // Extract the OS packet (skb).
@@ -2041,7 +2149,7 @@ VOS_STATUS hdd_rx_packet_cbk( v_VOID_t *vosContext,
          if (VOS_PKT_PROTO_TYPE_EAPOL & proto_type)
          {
             VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
-                      "STA RX EAPOL");
+                      "STA RX EAPOL SubType %d",eapolSubType);
          }
          else if (VOS_PKT_PROTO_TYPE_DHCP & proto_type)
          {
@@ -2050,15 +2158,10 @@ VOS_STATUS hdd_rx_packet_cbk( v_VOID_t *vosContext,
          }
       }
 
-#ifdef DEBUG_ROAM_DELAY
-      vos_record_roam_event(e_HDD_RX_PKT_CBK_TIME, (void *)skb, 0);
-      //Should we check below global to avoid function call each time ??
-      /*
-         if(gRoamDelayMetaInfo.hdd_monitor_rx)
-         {
-         }
-       */
-#endif
+      if (pHddCtx->cfg_ini->gEnableRoamDelayStats)
+      {
+          vos_record_roam_event(e_HDD_RX_PKT_CBK_TIME, (void *)skb, 0);
+      }
       if (( NULL != pHddCtx ) &&
          (pHddCtx->cfg_ini->gEnableDebugLog & VOS_PKT_PROTO_TYPE_DHCP))
       {

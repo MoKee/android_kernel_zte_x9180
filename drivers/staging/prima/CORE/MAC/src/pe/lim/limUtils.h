@@ -74,6 +74,12 @@ typedef enum
     *pCurVal = (tLimBAState)(((pSta->baState >> tid*2) & 0x3));\
 }
 
+#define LIM_DFS_START_CHANNEL 52
+#define LIM_DFS_END_CHANNEL   144
+
+#define LIM_IS_CHANNEL_DFS(chnNum) \
+     (((chnNum) >= LIM_DFS_START_CHANNEL) && ((chnNum) <= LIM_DFS_END_CHANNEL))
+
 typedef struct sAddBaInfo
 {
     tANI_U16 fBaEnable : 1;
@@ -103,6 +109,7 @@ typedef enum offset {
     BW20,
     BW40PLUS,
     BW40MINUS,
+    BW80,
     BWALL
 } offset_t;
 
@@ -110,7 +117,7 @@ typedef struct op_class_map {
     tANI_U8 op_class;
     tANI_U8 ch_spacing;
     offset_t    offset;
-    tANI_U8 channels[15];
+    tANI_U8 channels[25];
 }op_class_map_t;
 // LIM utility functions
 tANI_BOOLEAN limCheck11BRateBitmap(tANI_U16 RateBitmap);
@@ -551,4 +558,10 @@ tANI_U8 limGetOPClassFromChannel(tANI_U8 *country,
 void limParseBeaconForTim(tpAniSirGlobal pMac, tANI_U8* pRxPacketInfo,
                           tpPESession psessionEntry);
 
+void limUpdateMaxRateFlag(tpAniSirGlobal pMac,
+                          tANI_U8 smeSessionId,
+                          tANI_U32 maxRateFlag);
+
+extern tANI_U32 limGetMaxRateFlags(tpDphHashNode pStaDs,
+                                   tpPESession psessionEntry);
 #endif /* __LIM_UTILS_H */

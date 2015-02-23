@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -45,9 +45,6 @@
   Are listed for each API below.
 
 
-  Copyright (c) 2008 QUALCOMM Incorporated.
-  All Rights Reserved.
-  Qualcomm Confidential and Proprietary
 ===========================================================================*/
 
 /*===========================================================================
@@ -93,6 +90,8 @@
 
 #include "pttMsgApi.h"
 #include "vos_trace.h"
+
+#include "vos_api.h"
 
 /*===========================================================================
    WLAN DAL Control Path Internal Data Definitions and Declarations
@@ -1716,7 +1715,7 @@ WDI_Init
 
   /*The WDI is initialized - set state to init */
   gWDICb.uGlobalState = WDI_INIT_ST;
-
+  gWDICb.roamDelayStatsEnabled = vos_get_roam_delay_stats_enabled();
   /*Send the context as a ptr to the global WDI Control Block*/
   *ppWDIGlobalCtx = &gWDICb;
 
@@ -24694,7 +24693,6 @@ WDI_CopyWDIStaCtxToHALStaCtx
 #endif
    /*Lightweight function - no sanity checks and no unecessary code to increase
     the chances of getting inlined*/
-
   wpalMemoryCopy(phalConfigSta->bssId,
                   pwdiConfigSta->macBSSID, WDI_MAC_ADDR_LEN);
 
@@ -24724,7 +24722,11 @@ WDI_CopyWDIStaCtxToHALStaCtx
   phalConfigSta->us32MaxAmpduDuration    = pwdiConfigSta->us32MaxAmpduDuratio;
   phalConfigSta->fDsssCckMode40Mhz       = pwdiConfigSta->ucDsssCckMode40Mhz;
   phalConfigSta->encryptType             = pwdiConfigSta->ucEncryptType;
-
+  if (phalConfigSta_V1 == NULL)
+  {
+      /* Set reserved bit only when hardware doesn't support 11AC */
+      phalConfigSta->reserved             = pwdiConfigSta->ucHtLdpcEnabled;
+  }
   phalConfigSta->mimoPS = WDI_2_HAL_MIMO_PS(pwdiConfigSta->wdiMIMOPS);
 
   phalConfigSta->supportedRates.opRateMode =
