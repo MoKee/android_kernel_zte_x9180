@@ -2709,15 +2709,14 @@ limTdlsPopulateMatchingRateSet(tpAniSirGlobal pMac,
                 if ((tempRateSet2.rate[i] & 0x7F) ==
                     (tempRateSet.rate[j] & 0x7F))
                 {
-#ifdef FEATURE_WLAN_NON_INTEGRATED_SOC
-                    if ((bRateIndex > HAL_NUM_11B_RATES) || (aRateIndex > HAL_NUM_11A_RATES))
+                    if ((bRateIndex > SIR_NUM_11B_RATES) ||
+                        (aRateIndex > SIR_NUM_11A_RATES))
                     {
-                        limLog(pMac, LOGE, FL("Invalid number of rates (11b->%d, 11a->%d)"),
-                                           bRateIndex,
-                                           aRateIndex);
+                        limLog(pMac, LOGE, FL("Invalid number of rates"
+                                              "(11b->%d, 11a->%d)"),
+                                              bRateIndex,aRateIndex);
                         return eSIR_FAILURE;
                     }
-#endif
                     if (sirIsArate(tempRateSet2.rate[i] & 0x7f))
                     {
                         isArate=1;
@@ -5077,6 +5076,7 @@ void PopulateDot11fTdlsOffchannelParams(tpAniSirGlobal pMac,
          * Log error.
          */
          limLog(pMac, LOGE, FL("could not retrieve valid channel list"));
+         return;
     }
     suppChannels->num_bands = (tANI_U8) numChans;
 
@@ -5719,17 +5719,24 @@ tSirRetStatus limProcesSmeTdlsLinkEstablishReq(tpAniSirGlobal pMac,
     pMsgTdlsLinkEstablishReq->uapsdQueues = pTdlsLinkEstablishReq->uapsdQueues;
     pMsgTdlsLinkEstablishReq->maxSp = pTdlsLinkEstablishReq->maxSp;
     pMsgTdlsLinkEstablishReq->isBufsta = pTdlsLinkEstablishReq->isBufSta;
-    pMsgTdlsLinkEstablishReq->isOffChannelSupported =
-                                pTdlsLinkEstablishReq->isOffChannelSupported;
+
     if (psessionEntry->tdlsChanSwitProhibited)
     {
-        pMsgTdlsLinkEstablishReq->isOffChannelSupported = 3;
+        /* If channel switch is prohibited by AP then dut can either
+         * send a switch channel request with failure status or it can
+         * ignore the request without sending the response.
+         * isOffChannelSupported = 0 disables the TDLS off-channel and
+         * if off-channel support is disabled then FW ignores switch
+         * channel request sent by TDLS peer */
+        pMsgTdlsLinkEstablishReq->isOffChannelSupported = 0;
         limLog(pMac, LOG1, FL("Channel Switch Prohibited by AP"));
     }
     else
     {
-        pMsgTdlsLinkEstablishReq->isOffChannelSupported = 1;
+        pMsgTdlsLinkEstablishReq->isOffChannelSupported =
+            pTdlsLinkEstablishReq->isOffChannelSupported;
     }
+
     if ((pTdlsLinkEstablishReq->supportedChannelsLen > 0) &&
         (pTdlsLinkEstablishReq->supportedChannelsLen <= SIR_MAC_MAX_SUPP_CHANNELS))
     {
