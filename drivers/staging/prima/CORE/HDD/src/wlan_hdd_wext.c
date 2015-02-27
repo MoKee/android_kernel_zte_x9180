@@ -54,7 +54,6 @@
 #include <wlan_hdd_includes.h>
 #include <wlan_btc_svc.h>
 #include <wlan_nlink_common.h>
-#include <linux/ratelimit.h>
 #ifdef WLAN_BTAMP_FEATURE
 #include <bap_hdd_main.h>
 #endif
