@@ -732,9 +732,6 @@ static void goodix_ts_work_func(struct work_struct *work)
         GTP_DEBUG("0x814B = 0x%02X", doze_buf[2]);
         if (ret > 0)
         {     
-	    if(doze_buf[2] == 0) {
-		doze_status = DOZE_DISABLED;
-	    } else
             if ((doze_buf[2] == 'a') || (doze_buf[2] == 'b') || (doze_buf[2] == 'c') ||
                 (doze_buf[2] == 'd') || (doze_buf[2] == 'e') || (doze_buf[2] == 'g') || 
                 (doze_buf[2] == 'h') || (doze_buf[2] == 'm') || (doze_buf[2] == 'o') ||
