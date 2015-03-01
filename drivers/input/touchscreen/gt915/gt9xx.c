@@ -3004,9 +3004,9 @@ static void goodix_ts_resume(struct goodix_ts_data *ts)
 /*ZTEMT END*/
 
 #if GTP_GESTURE_WAKEUP
-	if (ts->wakeup_gesture == 1) {	//add by luochangyang 2014/04/30
+//	if (ts->wakeup_gesture == 1) {	//add by luochangyang 2014/04/30
 	    doze_status = DOZE_DISABLED;
-	}
+//	}
 #endif
 
     if (ret < 0)
