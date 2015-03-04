@@ -80,11 +80,11 @@ u8 config[GTP_CONFIG_MAX_LENGTH + GTP_ADDR_LENGTH]
 /*ZTEMT END*/
 
 #if GTP_HAVE_TOUCH_KEY
-    static const u16 touch_key_array[] = GTP_KEY_TAB;
+    static u16 touch_key_array[] = GTP_KEY_TAB;
     #define GTP_MAX_KEY_NUM  (sizeof(touch_key_array)/sizeof(touch_key_array[0]))
     
 #if GTP_DEBUG_ON
-    static const int  key_codes[] = {KEY_MENU, KEY_HOMEPAGE, KEY_BACK};
+    static int key_codes[] = {KEY_MENU, KEY_HOMEPAGE, KEY_BACK};
     static const char *key_names[] = {"Key_Menu", "Key_Home", "Key_Back"};
 #endif
     
@@ -672,6 +672,47 @@ static ssize_t ztemt_wakeup_gesture_store(struct device *dev,
 
 static DEVICE_ATTR(wakeup_gesture, 0664, ztemt_wakeup_gesture_show, ztemt_wakeup_gesture_store);
 /*luochangyang END*/
+
+static ssize_t touch_key_array_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	ssize_t ret;
+
+	if (GTP_MAX_KEY_NUM != 3)
+		return -EINVAL;
+
+	ret = sprintf(buf, "%hu %hu %hu\n", touch_key_array[0], touch_key_array[1], touch_key_array[2]);
+
+	return ret;
+}
+
+static ssize_t touch_key_array_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
+{
+	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
+	struct goodix_ts_data *ts = i2c_get_clientdata(client);
+	ssize_t ret;
+	int index;
+	u16 touch_key_array_tmp[] = GTP_KEY_TAB;
+
+	if (GTP_MAX_KEY_NUM != 3)
+		return -EINVAL;
+
+	ret = sscanf(buf, "%hu %hu %hu", &touch_key_array_tmp[0], &touch_key_array_tmp[1], &touch_key_array_tmp[2]);
+
+	for (index = 0; index < GTP_MAX_KEY_NUM; index++)
+	{
+		input_set_capability(ts->input_dev, EV_KEY, touch_key_array_tmp[index]);
+		touch_key_array[index] = touch_key_array_tmp[index];
+#if GTP_DEBUG_ON
+		key_codes[index] = touch_key_array_tmp[index];
+#endif
+	}
+
+	return size;
+}
+
+static DEVICE_ATTR(touch_key_array, 0664, touch_key_array_show, touch_key_array_store);
 
 
 /*******************************************************
@@ -2827,6 +2868,11 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
     if (ts->use_irq)
     {
         gtp_irq_enable(ts);
+    }
+
+    ret = device_create_file(&(client->dev), &dev_attr_touch_key_array);
+    if (ret) {
+        dev_err(&(client->dev), "%s: Error, could not create touch_key_array", __func__);
     }
     
 	/*luochangyang For wakeup gesture 2014/04/29*/
