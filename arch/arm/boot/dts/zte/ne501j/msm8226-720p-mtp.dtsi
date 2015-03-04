@@ -171,6 +171,7 @@
 
 		qcom,cdc-mclk-gpios = <&pm8226_gpios 1 0>;
 		qcom,cdc-vdd-spkr-gpios = <&pm8226_gpios 2 0>;
+		qcom,cdc-us-euro-gpios = <&msmgpio 69 0>;
 	};
 
 	sound-9302 {
@@ -188,6 +189,7 @@
 
 		qcom,cdc-mclk-gpios = <&pm8226_gpios 1 0>;
 		qcom,cdc-vdd-spkr-gpios = <&pm8226_gpios 2 0>;
+		qcom,cdc-us-euro-gpios = <&msmgpio 69 0>;
 	};
 };
 
@@ -615,7 +617,8 @@
 };
 
 &mdss_dsi0 {
-	qcom,dsi-pref-prim-pan = <&dsi_cs_nt35592_720_vid>;//qcom,dsi-pref-prim-pan = <&dsi_nt35590_720_vid>;
+	qcom,dsi-pref-prim-pan = <&dsi_cs_nt35592_720_vid>;
+//qcom,dsi-pref-prim-pan = <&dsi_nt35590_720_vid>;
 };
 
 &dsi_nt35590_720_vid {
