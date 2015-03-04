@@ -80,6 +80,7 @@ u8 config[GTP_CONFIG_MAX_LENGTH + GTP_ADDR_LENGTH]
 /*ZTEMT END*/
 
 #if GTP_HAVE_TOUCH_KEY
+    static int touch_keys_enabled = 1;
     static u16 touch_key_array[] = GTP_KEY_TAB;
     #define GTP_MAX_KEY_NUM  (sizeof(touch_key_array)/sizeof(touch_key_array[0]))
     
@@ -715,6 +716,36 @@ static ssize_t touch_key_array_store(struct device *dev,
 static DEVICE_ATTR(touch_key_array, 0664, touch_key_array_show, touch_key_array_store);
 
 
+static ssize_t keys_enabled_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	ssize_t ret;
+
+	ret = sprintf(buf, "%d\n", touch_keys_enabled);
+
+	return ret;
+}
+
+static ssize_t keys_enabled_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
+{
+	unsigned long value;
+	int ret;
+
+	ret = kstrtoul(buf, 10, &value);
+	if (ret < 0)
+		return ret;
+
+	if (value < 0 || value > 1)
+		return -EINVAL;
+
+	touch_keys_enabled = (int)value;
+
+	return size;
+}
+
+static DEVICE_ATTR(keys_enabled, 0664, keys_enabled_show, keys_enabled_store);
+
 /*******************************************************
 Function:
     Goodix touchscreen work function
@@ -1046,7 +1077,7 @@ static void goodix_ts_work_func(struct work_struct *work)
     #endif
     
     #if GTP_HAVE_TOUCH_KEY
-        if (!pre_touch)
+        if (!pre_touch && touch_keys_enabled)
         {
             for (i = 0; i < GTP_MAX_KEY_NUM; i++)
             {
@@ -2873,6 +2904,11 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
     ret = device_create_file(&(client->dev), &dev_attr_touch_key_array);
     if (ret) {
         dev_err(&(client->dev), "%s: Error, could not create touch_key_array", __func__);
+    }
+
+    ret = device_create_file(&(client->dev), &dev_attr_keys_enabled);
+    if (ret) {
+        dev_err(&(client->dev), "%s: Error, could not create keys_enabled", __func__);
     }
     
 	/*luochangyang For wakeup gesture 2014/04/29*/
