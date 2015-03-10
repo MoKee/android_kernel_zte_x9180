@@ -668,6 +668,10 @@ static ssize_t ztemt_wakeup_gesture_store(struct device *dev,
 
 	ts->wakeup_gesture = (u8)value;
 
+	if (ts->gtp_is_suspend && ts->wakeup_gesture) {
+		gtp_enter_doze(ts);
+	}
+
 	return size;
 }
 
