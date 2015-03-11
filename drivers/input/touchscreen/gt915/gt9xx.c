@@ -994,6 +994,7 @@ static void goodix_ts_work_func(struct work_struct *work)
         /* For large area event */        
 #if 1
 		//report palm event
+		GTP_INFO("Have palm event.\n");
 		input_report_key(ts->input_dev, BTN_TOUCH, 1);
 		input_report_abs(ts->input_dev, ABS_MT_PRESSURE,300);
 		input_mt_sync(ts->input_dev);
@@ -2151,6 +2152,7 @@ static s8 gtp_request_input_dev(struct goodix_ts_data *ts)
 
     input_set_abs_params(ts->input_dev, ABS_MT_POSITION_X, 0, ts->abs_x_max, 0, 0);
     input_set_abs_params(ts->input_dev, ABS_MT_POSITION_Y, 0, ts->abs_y_max, 0, 0);
+    input_set_abs_params(ts->input_dev, ABS_MT_PRESSURE, 0, 255, 0, 0);
     input_set_abs_params(ts->input_dev, ABS_MT_WIDTH_MAJOR, 0, 255, 0, 0);
     input_set_abs_params(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
     input_set_abs_params(ts->input_dev, ABS_MT_TRACKING_ID, 0, 255, 0, 0);
