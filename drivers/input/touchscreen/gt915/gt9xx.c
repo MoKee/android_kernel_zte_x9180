@@ -994,6 +994,7 @@ static void goodix_ts_work_func(struct work_struct *work)
         /* For large area event */        
 #if 1
 		//report palm event
+		GTP_INFO("Have palm event.\n");
 		input_report_key(ts->input_dev, BTN_TOUCH, 1);
 		input_report_abs(ts->input_dev, ABS_MT_PRESSURE,300);
 		input_mt_sync(ts->input_dev);
