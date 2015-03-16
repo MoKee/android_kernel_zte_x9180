@@ -988,7 +988,7 @@ static void goodix_ts_work_func(struct work_struct *work)
     if (finger & 0x40)      //0x814E bit6
     {
         /* For large area event */        
-#if 1
+#if 0
 		//report palm event
 		GTP_INFO("Have palm event.\n");
 		input_report_key(ts->input_dev, BTN_TOUCH, 1);
@@ -999,10 +999,10 @@ static void goodix_ts_work_func(struct work_struct *work)
 		input_report_key(ts->input_dev, BTN_TOUCH, 0);
 		input_sync(ts->input_dev);
 #else
-		input_report_key(ts->input_dev, KEY_POWER, 1);
+		input_report_key(ts->input_dev, KEY_PALM, 1);
 		input_sync(ts->input_dev);
 		
-		input_report_key(ts->input_dev, KEY_POWER, 0);
+		input_report_key(ts->input_dev, KEY_PALM, 0);
 		input_sync(ts->input_dev);
 #endif
 
@@ -2141,6 +2141,8 @@ static s8 gtp_request_input_dev(struct goodix_ts_data *ts)
 #if GTP_GESTURE_WAKEUP
     input_set_capability(ts->input_dev, EV_KEY, KEY_POWER);
 #endif 
+
+    input_set_capability(ts->input_dev, EV_KEY, KEY_PALM);
 
 #if GTP_CHANGE_X2Y
     GTP_SWAP(ts->abs_x_max, ts->abs_y_max);
