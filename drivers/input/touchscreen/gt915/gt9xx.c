@@ -674,6 +674,40 @@ static ssize_t ztemt_wakeup_gesture_store(struct device *dev,
 static DEVICE_ATTR(wakeup_gesture, 0664, ztemt_wakeup_gesture_show, ztemt_wakeup_gesture_store);
 /*luochangyang END*/
 
+static ssize_t ztemt_palm2sleep_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
+	struct goodix_ts_data *ts = i2c_get_clientdata(client);
+	ssize_t ret;
+	
+	ret = sprintf(buf, "0x%02X\n", ts->palm2sleep);
+
+	return ret;
+}
+
+static ssize_t ztemt_palm2sleep_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
+{
+	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
+	struct goodix_ts_data *ts = i2c_get_clientdata(client);
+	unsigned long value;
+	int ret;
+
+	ret = kstrtoul(buf, 10, &value);
+	if (ret < 0)
+		return ret;
+
+	if (value > 1 || value < 0)
+		return -EINVAL;
+
+	ts->palm2sleep = (u8)value;
+
+	return size;
+}
+
+static DEVICE_ATTR(palm2sleep, 0664, ztemt_palm2sleep_show, ztemt_palm2sleep_store);
+
 static ssize_t touch_key_array_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -999,11 +1033,13 @@ static void goodix_ts_work_func(struct work_struct *work)
 		input_report_key(ts->input_dev, BTN_TOUCH, 0);
 		input_sync(ts->input_dev);
 #else
+	if(ts->palm2sleep > 0) {
 		input_report_key(ts->input_dev, KEY_PALM, 1);
 		input_sync(ts->input_dev);
 		
 		input_report_key(ts->input_dev, KEY_PALM, 0);
 		input_sync(ts->input_dev);
+	}
 #endif
 
         //release finger
@@ -2913,6 +2949,12 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
     if (ret) {
         dev_err(&(client->dev), "%s: Error, could not create keys_enabled", __func__);
     }
+    
+    ret = device_create_file(&(client->dev), &dev_attr_palm2sleep);
+    if (ret) {
+        dev_err(&(client->dev), "%s: Error, could not create palm2sleep", __func__);
+    }
+    ts->palm2sleep = 1;
     
 	/*luochangyang For wakeup gesture 2014/04/29*/
 	ret = device_create_file(&(client->dev), &dev_attr_wakeup_gesture);
