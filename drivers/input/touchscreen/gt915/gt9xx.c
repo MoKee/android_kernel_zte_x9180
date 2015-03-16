@@ -1021,10 +1021,10 @@ static void goodix_ts_work_func(struct work_struct *work)
     /*ZTEMT Added by luochangyang, For palm to sleep 2014/02/19*/
     if (finger & 0x40)      //0x814E bit6
     {
-        /* For large area event */        
+        /* For large area event */
+        GTP_INFO("Have palm event.\n");
 #if 0
 		//report palm event
-		GTP_INFO("Have palm event.\n");
 		input_report_key(ts->input_dev, BTN_TOUCH, 1);
 		input_report_abs(ts->input_dev, ABS_MT_PRESSURE,300);
 		input_mt_sync(ts->input_dev);
