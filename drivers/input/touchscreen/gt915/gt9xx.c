@@ -2962,7 +2962,7 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 		dev_err(&(client->dev), "%s: Error, could not create wakeup_gesture", __func__);
 	}
 	/*Default enable or disable*/
-#if 0
+#if 1
 	ts->wakeup_gesture = 1;
 #else
 	ts->wakeup_gesture = 0;
