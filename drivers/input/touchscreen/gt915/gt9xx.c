@@ -1608,7 +1608,8 @@ static s8 gtp_wakeup_sleep(struct goodix_ts_data * ts)
             GTP_INFO("GTP wakeup sleep.");
             
         //#if (!GTP_GESTURE_WAKEUP)
-		if (ts->wakeup_gesture == 0) {	//add by luochangyang 2014/04/30
+//		if (ts->wakeup_gesture == 0) {	//add by luochangyang 2014/04/30
+	    if(DOZE_DISABLED == old_doze_status) {
             {
                 gtp_int_sync(25);
             #if GTP_ESD_PROTECT
