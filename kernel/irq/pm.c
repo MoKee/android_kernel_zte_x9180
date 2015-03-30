@@ -109,11 +109,6 @@ int check_wakeup_irqs(void)
 					irq,
 					desc->action && desc->action->name ?
 					desc->action->name : "");
-				if(295 == irq) {
-					pr_info("Force disabling irq and go to sleep");
-					disable_irq_nosync(irq);
-					continue;
-				}
 				return -EBUSY;
 			}
 			continue;
