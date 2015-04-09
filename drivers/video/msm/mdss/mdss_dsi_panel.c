@@ -184,7 +184,7 @@ static void mdss_dsi_panel_bklt_dcs(struct mdss_dsi_ctrl_pdata *ctrl, int level)
 
             led_pwm1[1] = level & 0xff;
  
-	pr_err("\n%s: ---------------level=%d. after\n", __func__, led_pwm1[1]);
+	pr_debug("\n%s: ---------------level=%d. after\n", __func__, led_pwm1[1]);
 
 	memset(&cmdreq, 0, sizeof(cmdreq));
 	cmdreq.cmds = &backlight_cmd;
