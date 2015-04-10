@@ -41,6 +41,8 @@
  * This file contains the API exposed by the 
  * wlan device abstarction layer module for abstracting DXE/SDIO.
  *
+ * Copyright (c) 2008 QUALCOMM Incorporated. All Rights Reserved.
+ * Qualcomm Confidential and Proprietary
  *
  * Example usage for DXE.
  * ----------------------

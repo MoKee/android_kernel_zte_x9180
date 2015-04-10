@@ -158,6 +158,8 @@ WLANSAP_Open
         return VOS_STATUS_E_FAULT;
     }
 
+    vos_mem_zero(pSapCtx, sizeof(tSapContext));
+
     /*------------------------------------------------------------------------
         Clean up SAP control block, initialize all values
     ------------------------------------------------------------------------*/
@@ -601,6 +603,9 @@ WLANSAP_StartBss
 
         //Set the BSSID to your "self MAC Addr" read the mac address from Configuation ITEM received from HDD
         pSapCtx->csrRoamProfile.BSSIDs.numOfBSSIDs = 1;
+        vos_mem_copy(pSapCtx->csrRoamProfile.BSSIDs.bssid,
+                     pSapCtx->self_mac_addr,
+                     sizeof( tCsrBssid ) );
 
         //Save a copy to SAP context
         vos_mem_copy(pSapCtx->csrRoamProfile.BSSIDs.bssid,
@@ -2399,7 +2404,7 @@ void WLANSAP_PopulateDelStaParams(const v_U8_t *mac,
             vos_mem_copy(pDelStaParams->peerMacAddr, mac, VOS_MAC_ADDR_SIZE);
 
         if (reason_code == 0)
-            pDelStaParams->reason_code = eSIR_MAC_DEAUTH_LEAVING_BSS_REASON;
+            pDelStaParams->reason_code = eCsrForcedDeauthSta;
         else
             pDelStaParams->reason_code = reason_code;
 

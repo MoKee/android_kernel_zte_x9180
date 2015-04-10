@@ -35,6 +35,9 @@
   
   \brief prototype for SME structures and APIs used insside SME
   
+   Copyright 2008 (c) Qualcomm, Incorporated.  All Rights Reserved.
+   
+   Qualcomm Confidential and Proprietary.
   
   ========================================================================*/
 
@@ -227,7 +230,6 @@ typedef struct tagSmeCmd
         tTdlsCmd  tdlsCmd;
 #endif
         tSirPNOScanReq pnoInfo;
-        tSirSpoofMacAddrReq macAddrSpoofCmd;
     }u;
 }tSmeCmd;
 
@@ -281,7 +283,6 @@ eHalStatus oemData_ProcessOemDataReqCommand(tpAniSirGlobal pMac, tSmeCmd *pComma
 eHalStatus csrProcessAddStaSessionCommand( tpAniSirGlobal pMac, tSmeCmd *pCommand );
 eHalStatus csrProcessAddStaSessionRsp( tpAniSirGlobal pMac, tANI_U8 *pMsg);
 eHalStatus csrProcessDelStaSessionCommand( tpAniSirGlobal pMac, tSmeCmd *pCommand );
-eHalStatus csrProcessMacAddrSpoofCommand( tpAniSirGlobal pMac, tSmeCmd *pCommand );
 eHalStatus csrProcessDelStaSessionRsp( tpAniSirGlobal pMac, tANI_U8 *pMsg);
 
 #ifdef WLAN_NS_OFFLOAD
@@ -350,7 +351,5 @@ eHalStatus csrCreateRoamScanChannelList(tpAniSirGlobal pMac,
                                                 const eCsrBand eBand);
 #endif
 void activeListCmdTimeoutHandle(void *userData);
-
-void csrGetStaticUapsdMask(tpAniSirGlobal pMac, tANI_U8 *staticUapsdMask);
 
 #endif //#if !defined( __SMEINSIDE_H )

@@ -38,6 +38,9 @@
   
   \brief prototype for SME internal structures and APIs used for SME and MAC
   
+   Copyright 2008 (c) Qualcomm, Incorporated.  All Rights Reserved.
+   
+   Qualcomm Confidential and Proprietary.
   
   ========================================================================*/
 
@@ -72,7 +75,6 @@ typedef enum eSmeCommandType
     eSmeCommandAddStaSession,
     eSmeCommandDelStaSession,
     eSmeCommandPnoReq,
-    eSmeCommandMacSpoofRequest,
 #ifdef FEATURE_WLAN_TDLS
     //eSmeTdlsCommandMask = 0x80000,  //To identify TDLS commands <TODO>
     //These can be considered as csr commands. 
@@ -167,7 +169,6 @@ typedef struct tagSmeStruct
    void *pEXTScanCallbackContext;
 #endif /* WLAN_FEATURE_EXTSCAN */
    tSmeEncMsgHddCbkInfo pEncMsgInfoParams;
-   void (*pBtCoexTDLSNotification) (void *pAdapter, int);
 
 } tSmeStruct, *tpSmeStruct;
 

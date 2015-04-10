@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2014 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -271,17 +271,13 @@ tSirRetStatus limSendSwitchChnlParams(tpAniSirGlobal pMac,
     msgQ.bodyptr = pChnlParams;
     msgQ.bodyval = 0;
 #if defined WLAN_FEATURE_VOWIFI  
-    limLog( pMac, LOG1,
-        FL( "Sending WDA_CHNL_SWITCH_REQ with SecondaryChnOffset - %d,"
-        " ChannelNumber - %d, maxTxPower - %d"),
-        pChnlParams->secondaryChannelOffset, pChnlParams->channelNumber,
-                                                pChnlParams->maxTxPower);
+    PELOG3(limLog( pMac, LOG3,
+        FL( "Sending WDA_CHNL_SWITCH_REQ with SecondaryChnOffset - %d, ChannelNumber - %d, maxTxPower - %d"),
+        pChnlParams->secondaryChannelOffset, pChnlParams->channelNumber, pChnlParams->maxTxPower);)
 #else
-    limLog( pMac, LOG1,
-        FL( "Sending WDA_CHNL_SWITCH_REQ with SecondaryChnOffset - %d, "
-        "ChannelNumber - %d, LocalPowerConstraint - %d"),
-        pChnlParams->secondaryChannelOffset, pChnlParams->channelNumber,
-                                        pChnlParams->localPowerConstraint);
+    PELOG3(limLog( pMac, LOG3,
+        FL( "Sending WDA_CHNL_SWITCH_REQ with SecondaryChnOffset - %d, ChannelNumber - %d, LocalPowerConstraint - %d"),
+        pChnlParams->secondaryChannelOffset, pChnlParams->channelNumber, pChnlParams->localPowerConstraint);)
 #endif
     MTRACE(macTraceMsgTx(pMac, peSessionId, msgQ.type));
     limLog(pMac,LOG1,"SessionId:%d WDA_CHNL_SWITCH_REQ for SSID:%s",peSessionId,
@@ -673,13 +669,10 @@ tSirRetStatus limSendHT40OBSSScanInd(tpAniSirGlobal pMac,
     {
         limLog(pMac, LOGE,
                    FL("could not retrieve Valid channel list"));
-        vos_mem_free(ht40OBSSScanInd);
-        return eSIR_FAILURE;
     }
     /* Extract 24G channel list */
     channel24GNum = 0;
-    for( count =0 ;count < validChannelNum &&
-                   (channel24GNum < SIR_ROAM_MAX_CHANNELS);count++)
+    for( count =0 ;count < validChannelNum ;count++)
     {
        if ((validChanList[count]> RF_CHAN_1) &&
            (validChanList[count] < RF_CHAN_14))
@@ -699,10 +692,7 @@ tSirRetStatus limSendHT40OBSSScanInd(tpAniSirGlobal pMac,
     msgQ.reserved = 0;
     msgQ.bodyptr = (void *)ht40OBSSScanInd;
     msgQ.bodyval = 0;
-    limLog(pMac, LOG1, FL("Sending WDA_HT40_OBSS_SCAN_IND to WDA"
-           "Obss Scan trigger width = %d, delay factor = %d"),
-           ht40OBSSScanInd->BSSChannelWidthTriggerScanInterval,
-            ht40OBSSScanInd->BSSWidthChannelTransitionDelayFactor);
+    PELOGW(limLog(pMac, LOGW, FL("Sending WDA_HT40_OBSS_SCAN_IND to WDA"));)
     MTRACE(macTraceMsgTx(pMac, psessionEntry->peSessionId, msgQ.type));
     retCode = wdaPostCtrlMsg(pMac, &msgQ);
     if (eSIR_SUCCESS != retCode)
@@ -1060,8 +1050,8 @@ tSirRetStatus limSendExcludeUnencryptInd(tpAniSirGlobal pMac,
     msgQ.reserved = 0;
     msgQ.bodyptr = pExcludeUnencryptParam;
     msgQ.bodyval = 0;
-    limLog(pMac, LOG1,
-                FL("Sending WDA_EXCLUDE_UNENCRYPTED_IND"));
+    PELOG3(limLog(pMac, LOG3,
+                FL("Sending WDA_EXCLUDE_UNENCRYPTED_IND"));)
     MTRACE(macTraceMsgTx(pMac, psessionEntry->peSessionId, msgQ.type));
     retCode = wdaPostCtrlMsg(pMac, &msgQ);
     if (eSIR_SUCCESS != retCode)

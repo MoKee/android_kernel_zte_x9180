@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -40,7 +40,7 @@
  *
  */
 #include "palTypes.h"
-#include "wniCfg.h"
+#include "wniCfgSta.h"
 #include "wniApi.h"
 #include "sirCommon.h"
 #include "sirDebug.h"
@@ -664,7 +664,7 @@ tSirRetStatus limStart(tpAniSirGlobal pMac)
 {
    tSirResultCodes retCode = eSIR_SUCCESS;
 
-   limLog(pMac, LOG1, FL(" enter"));
+   PELOG1(limLog(pMac, LOG1, FL(" enter"));)
 
    if (pMac->lim.gLimSmeState == eLIM_SME_OFFLINE_STATE)
    {
@@ -1063,7 +1063,6 @@ tSirRetStatus peOpen(tpAniSirGlobal pMac, tMacOpenParameters *pMacOpenParam)
     }
     pMac->lim.deauthMsgCnt = 0;
     pMac->lim.retryPacketCnt = 0;
-    pMac->lim.gLimIbssRetryCnt = 0;
 
     /*
      * peOpen is successful by now, so it is right time to initialize
@@ -1761,7 +1760,7 @@ limHandleIBSScoalescing(
         ieLen    = WDA_GET_RX_PAYLOAD_LEN(pRxPacketInfo);
         tsfLater = WDA_GET_RX_TSF_LATER(pRxPacketInfo);
         pIEs = WDA_GET_RX_MPDU_DATA(pRxPacketInfo);
-        limLog(pMac, LOG1, FL("BEFORE Coalescing tsfLater val :%d"), tsfLater);
+        PELOG3(limLog(pMac, LOG3, FL("BEFORE Coalescing tsfLater val :%d"), tsfLater);)
         retCode  = limIbssCoalesce(pMac, pHdr, pBeacon, pIEs, ieLen, tsfLater,psessionEntry);
     }
     return retCode;
@@ -1816,19 +1815,6 @@ tAniBool limEncTypeMatched(tpAniSirGlobal pMac, tpSchBeaconStruct  pBeacon,
             ( (pSession->encryptType == eSIR_ED_TKIP) ||
                 (pSession->encryptType == eSIR_ED_CCMP) ||
                 (pSession->encryptType == eSIR_ED_AES_128_CMAC)))
-        return eSIR_TRUE;
-
-    /* For HS2.0, RSN ie is not present
-     * in beacon. Therefore no need to
-     * check for security type in case
-     * OSEN session.
-     */
-    /*TODO: AP capability mismatch
-     * is not checked here because
-     * no logic for beacon parsing
-     * is avilable for HS2.0.
-     */
-    if (pSession->bOSENAssociation)
         return eSIR_TRUE;
 
     return eSIR_FALSE;
@@ -1889,7 +1875,10 @@ limDetectChangeInApCapabilities(tpAniSirGlobal pMac,
           (eSIR_FALSE == securityCapsMatched)
           ) ) )
     {
-        if ( false == psessionEntry->fWaitForProbeRsp )
+        /* No need to send probe request if security
+         * capability doesnt match, Disconnect directly.*/
+        if( (false == psessionEntry->fWaitForProbeRsp) &&
+                              (eSIR_TRUE == securityCapsMatched))
         {
             /* If Beacon capabilities is not matching with the current capability,
              * then send unicast probe request to AP and take decision after
@@ -2049,7 +2038,7 @@ tSirRetStatus limUpdateShortSlot(tpAniSirGlobal pMac, tpSirProbeRespBeacon pBeac
     if (nShortSlot != psessionEntry->shortSlotTimeSupported)
     {
         // Short slot time capability of AP has changed. Adopt to it.
-        limLog(pMac, LOG1, FL("Shortslot capability of AP changed: %d"),  nShortSlot);
+        PELOG1(limLog(pMac, LOG1, FL("Shortslot capability of AP changed: %d"),  nShortSlot);)
         ((tpSirMacCapabilityInfo)&psessionEntry->limCurrentBssCaps)->shortSlotTime = (tANI_U16)nShortSlot;
         psessionEntry->shortSlotTimeSupported = nShortSlot;
         pBeaconParams->fShortSlotTime = (tANI_U8) nShortSlot;
@@ -2123,7 +2112,7 @@ void limHandleBmpsStatusInd(tpAniSirGlobal pMac)
         case ePMM_STATE_UAPSD_SLEEP:
         case ePMM_STATE_UAPSD_WT_WAKEUP_RSP:
         case ePMM_STATE_WOWLAN:
-            limLog(pMac, LOG1, FL("Sending EXIT_BMPS_IND to SME "));
+            PELOG1(limLog(pMac, LOG1, FL("Sending EXIT_BMPS_IND to SME "));)
             limSendExitBmpsInd(pMac, eSME_BMPS_STATUS_IND_RCVD);
             break;
 

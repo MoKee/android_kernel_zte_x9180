@@ -33,6 +33,9 @@
 
    Network Protocol packet/buffer support interfaces
 
+   Copyright 2009 (c) Qualcomm, Incorporated.  All Rights Reserved.
+
+   Qualcomm Confidential and Proprietary.
 
   ========================================================================*/
 

@@ -34,6 +34,9 @@
   This file implements the device specific HW access interface
   required by the WLAN Platform Abstraction Layer (WPAL)
 
+  Copyright (c) 2011 QUALCOMM Incorporated.
+  All Rights Reserved.
+  Qualcomm Confidential and Proprietary
 ========================================================================*/
 
 /*===========================================================================

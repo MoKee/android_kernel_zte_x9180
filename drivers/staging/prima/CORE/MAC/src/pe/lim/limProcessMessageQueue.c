@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2013 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -44,7 +44,7 @@
 #include "wlan_qct_pal_packet.h"
 #include "wlan_qct_wda.h"
 
-#include "wniCfg.h"
+#include "wniCfgSta.h"
 #include "cfgApi.h"
 #include "sirCommon.h"
 #include "utilsApi.h"
@@ -358,8 +358,8 @@ static void limHandleUnknownA2IndexFrames(tpAniSirGlobal pMac, void *pRxPacketIn
 
         if (limIsGroupAddr(pMacHdr->addr2))
         {
-            limLog(pMac, LOG1, FL("Ignoring A2 Invalid Packet received for MC/BC:"));
-                    limPrintMacAddr(pMac, pMacHdr->addr2, LOG1);
+            PELOG2(limLog(pMac, LOG2, FL("Ignoring A2 Invalid Packet received for MC/BC:"));
+                    limPrintMacAddr(pMac, pMacHdr->addr2, LOG2);)
 
                 return;
         }
@@ -779,21 +779,6 @@ limHandle80211Frames(tpAniSirGlobal pMac, tpSirMsgQ limMsg, tANI_U8 *pDeferMsg)
 
     } else
 #endif
-
-    if ((fc.type == SIR_MAC_MGMT_FRAME) &&
-        (fc.subType == SIR_MAC_MGMT_PROBE_RSP) &&
-        pMac->lim.isSpoofingEnabled)
-    {
-        limLog( pMac, LOG2, FL("Probe Rsp recieved with DA: "MAC_ADDRESS_STR
-            " and selfMac Addr:"MAC_ADDRESS_STR), MAC_ADDR_ARRAY(pHdr->da),
-                            MAC_ADDR_ARRAY(pMac->lim.gSelfMacAddr));
-        if (VOS_TRUE == vos_mem_compare((v_VOID_t*) pHdr->da,
-               (v_VOID_t*) pMac->lim.spoofMacAddr, VOS_MAC_ADDRESS_LEN))
-        {
-            vos_mem_copy(pHdr->da, pMac->lim.gSelfMacAddr, VOS_MAC_ADDRESS_LEN);
-        }
-    }
-
     /* Added For BT-AMP Support */
     if((psessionEntry = peFindSessionByBssid(pMac,pHdr->bssId,&sessionId))== NULL)
     {
@@ -1101,7 +1086,7 @@ limProcessAbortScanInd(tpAniSirGlobal pMac, tANI_U8 SessionId)
      * SME should send WNI_CFG_BACKGROUND_SCAN_PERIOD indication 
      * to start the background scan again
      */
-    limLog(pMac, LOG1, FL("Processing AbortScan Ind"));
+    PELOG2(limLog(pMac, LOG2, FL("Processing AbortScan Ind"));)
 
     limAbortBackgroundScan(pMac);
 
@@ -1449,8 +1434,7 @@ limProcessMessages(tpAniSirGlobal pMac, tpSirMsgQ  limMsg)
 
                 if ( deferMsg == true )
                 {
-                        limLog(pMac, LOG2, FL("Defer message type=%X "),
-                                                            limMsg->type);
+                    PELOG1(limLog(pMac, LOG1, FL("Defer message type=%X "), limMsg->type);)
                         if (limDeferMsg(pMac, limMsg) != TX_SUCCESS)
                         {
                             PELOGE(limLog(pMac, LOGE, FL("Unable to Defer message(0x%X) limSmeState %d (prev sme state %d) sysRole %d mlm state %d (prev mlm state %d)"),
@@ -2238,14 +2222,6 @@ limProcessMessages(tpAniSirGlobal pMac, tpSirMsgQ  limMsg)
                    "OBSS Scan Stop not started ");
         }
         break;
-#ifdef WLAN_FEATURE_AP_HT40_24G
-    case eWNI_SME_SET_HT_2040_MODE:
-        limProcessSmeReqMessages(pMac, limMsg);
-        vos_mem_free((v_VOID_t*)limMsg->bodyptr);
-        limMsg->bodyptr = NULL;
-        break;
-#endif
-
 #ifdef FEATURE_WLAN_TDLS
         case WDA_SET_TDLS_LINK_ESTABLISH_REQ_RSP:
         {
@@ -2327,10 +2303,6 @@ limProcessMessages(tpAniSirGlobal pMac, tpSirMsgQ  limMsg)
        limMsg->bodyptr = NULL;
        break;
     }
-
-    case WDA_SPOOF_MAC_ADDR_RSP:
-       limProcessMlmSpoofMacAddrRsp(pMac, (tSirRetStatus)limMsg->bodyval);
-       break;
 
     default:
         vos_mem_free((v_VOID_t*)limMsg->bodyptr);
@@ -2580,13 +2552,10 @@ void limLogSessionStates(tpAniSirGlobal pMac)
     {
         if(pMac->lim.gpSession[i].valid)
         {
-            limLog(pMac, LOG1, FL("Session[%d] sysRole(%d) limSmeState %d "
-                    "(prev sme state %d) mlm state %d (prev mlm state %d)"),
-                   i, pMac->lim.gpSession[i].limSystemRole,
-                   pMac->lim.gpSession[i].limSmeState,
-                   pMac->lim.gpSession[i].limPrevSmeState,
-                   pMac->lim.gpSession[i].limMlmState,
-                   pMac->lim.gpSession[i].limPrevMlmState);
+            PELOG1(limLog(pMac, LOG1, FL("Session[%d] sysRole(%d) limSmeState %d (prev sme state %d) mlm state %d (prev mlm state %d)"),
+                   i, pMac->lim.gpSession[i].limSystemRole,  pMac->lim.gpSession[i].limSmeState,  
+                   pMac->lim.gpSession[i].limPrevSmeState,   pMac->lim.gpSession[i].limMlmState,  
+                   pMac->lim.gpSession[i].limPrevMlmState);)
         }
     }
 #endif //ifdef WLAN_DEBUG

@@ -34,6 +34,9 @@
   
   \brief Android specific definitions for vOSS DIAG events
   
+   Copyright 2008 (c) Qualcomm, Incorporated.  All Rights Reserved.
+   
+   Qualcomm Confidential and Proprietary.
   
   ========================================================================*/
 

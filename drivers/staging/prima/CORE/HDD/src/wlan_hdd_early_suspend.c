@@ -31,6 +31,9 @@
 *     \brief      power management functions
 *
 *     Description
+*                 Copyright 2009 (c) Qualcomm, Incorporated.
+*                 All Rights Reserved.
+*                 Qualcomm Confidential and Proprietary.
 *
 ==============================================================================**/
 /* $HEADER$ */
@@ -308,7 +311,6 @@ VOS_STATUS hdd_enter_deep_sleep(hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter)
    long ret;
 
    //Stop the Interface TX queue.
-   hddLog(VOS_TRACE_LEVEL_INFO, FL("Disabling queues"));
    netif_tx_disable(pAdapter->dev);
    netif_carrier_off(pAdapter->dev);
 
@@ -452,24 +454,20 @@ err_deep_sleep:
 
 }
 
-void __hdd_ipv6_notifier_work_queue(struct work_struct *work)
+void hdd_ipv6_notifier_work_queue(struct work_struct *work)
 {
     hdd_adapter_t* pAdapter =
              container_of(work, hdd_adapter_t, ipv6NotifierWorkQueue);
     hdd_context_t *pHddCtx;
     int status;
 
-    ENTER();
-    if (NULL == pAdapter)
-    {
-        hddLog(LOGE, FL("Adapter is invalid"));
-        return;
-    }
+    hddLog(LOG1, FL("Reconfiguring NS Offload"));
 
     pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
     status = wlan_hdd_validate_context(pHddCtx);
     if (0 != status)
     {
+        hddLog(LOGE, FL("HDD context is invalid"));
         return;
     }
 
@@ -502,16 +500,12 @@ void __hdd_ipv6_notifier_work_queue(struct work_struct *work)
      */
     wlan_hdd_set_mc_addr_list(pAdapter, TRUE);
 #endif
-    EXIT();
+
+
 }
 
-void hdd_ipv6_notifier_work_queue(struct work_struct *work)
-{
-     vos_ssr_protect(__func__);
-     __hdd_ipv6_notifier_work_queue(work);
-     vos_ssr_unprotect(__func__);
-}
-int __wlan_hdd_ipv6_changed(struct notifier_block *nb,
+
+int wlan_hdd_ipv6_changed(struct notifier_block *nb,
                             unsigned long data, void *arg)
 {
     struct inet6_ifaddr *ifa = (struct inet6_ifaddr *)arg;
@@ -521,11 +515,11 @@ int __wlan_hdd_ipv6_changed(struct notifier_block *nb,
     VOS_STATUS vos_status;
     int status;
 
-    ENTER();
     pHddCtx = container_of(nb, hdd_context_t, ipv6_notifier);
     status = wlan_hdd_validate_context(pHddCtx);
     if (0 != status)
     {
+        hddLog(LOGE, FL("HDD context is invalid"));
         return NOTIFY_DONE;
     }
 
@@ -551,18 +545,8 @@ int __wlan_hdd_ipv6_changed(struct notifier_block *nb,
         vos_status = hdd_get_next_adapter(pHddCtx, pAdapterNode, &pNext);
         pAdapterNode = pNext;
     }
-    EXIT();
-    return NOTIFY_DONE;
-}
 
-int wlan_hdd_ipv6_changed(struct notifier_block *nb,
-                            unsigned long data, void *arg)
-{
-    int ret;
-    vos_ssr_protect(__func__);
-    ret = __wlan_hdd_ipv6_changed( nb, data, arg);
-    vos_ssr_unprotect(__func__);
-    return ret;
+    return NOTIFY_DONE;
 }
 
 /*
@@ -724,8 +708,11 @@ void hdd_conf_ns_offload(hdd_adapter_t *pAdapter, int fenable)
     pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
 
     ret = wlan_hdd_validate_context(pHddCtx);
+
     if (0 != ret)
     {
+        VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                   FL("HDD context is not valid"));
         return;
     }
 
@@ -942,28 +929,23 @@ end:
     {
        vos_mem_free(selfIPv6AddrValid);
     }
-    EXIT();
     return;
 }
 #endif
 
-void __hdd_ipv4_notifier_work_queue(struct work_struct *work)
+void hdd_ipv4_notifier_work_queue(struct work_struct *work)
 {
     hdd_adapter_t* pAdapter =
              container_of(work, hdd_adapter_t, ipv4NotifierWorkQueue);
     hdd_context_t *pHddCtx;
     int status;
 
-    ENTER();
-    if (NULL == pAdapter)
-    {
-        hddLog(LOGE, FL("Adapter is invalid"));
-        return;
-    }
+    hddLog(LOG1, FL("Reconfiguring ARP Offload"));
     pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
     status = wlan_hdd_validate_context(pHddCtx);
     if (0 != status)
     {
+        hddLog(LOGE, FL("HDD context is invalid"));
         return;
     }
 
@@ -985,17 +967,9 @@ void __hdd_ipv4_notifier_work_queue(struct work_struct *work)
         // of IPv4 notifier again.
         hdd_conf_arp_offload(pAdapter, 2);
     }
-    EXIT();
 }
 
-void hdd_ipv4_notifier_work_queue(struct work_struct *work)
-{
-    vos_ssr_protect(__func__);
-    __hdd_ipv4_notifier_work_queue(work);
-    vos_ssr_unprotect(__func__);
-}
-
-int __wlan_hdd_ipv4_changed(struct notifier_block *nb,
+int wlan_hdd_ipv4_changed(struct notifier_block *nb,
                             unsigned long data, void *arg)
 {
     struct in_ifaddr *ifa = (struct in_ifaddr *)arg;
@@ -1008,11 +982,11 @@ int __wlan_hdd_ipv4_changed(struct notifier_block *nb,
     VOS_STATUS vos_status;
     int status;
 
-    ENTER();
     pHddCtx = container_of(nb, hdd_context_t, ipv4_notifier);
     status = wlan_hdd_validate_context(pHddCtx);
     if (0 != status)
     {
+        hddLog(LOGE, FL("HDD context is invalid"));
         return NOTIFY_DONE;
     }
 
@@ -1055,18 +1029,8 @@ int __wlan_hdd_ipv4_changed(struct notifier_block *nb,
         vos_status = hdd_get_next_adapter(pHddCtx, pAdapterNode, &pNext);
         pAdapterNode = pNext;
     }
-    EXIT();
-    return NOTIFY_DONE;
-}
 
-int wlan_hdd_ipv4_changed(struct notifier_block *nb,
-                            unsigned long data, void *arg)
-{
-    int ret;
-    vos_ssr_protect(__func__);
-    ret = __wlan_hdd_ipv4_changed( nb, data, arg);
-    vos_ssr_unprotect(__func__);
-    return ret;
+    return NOTIFY_DONE;
 }
 
 /**----------------------------------------------------------------------------
@@ -1249,20 +1213,10 @@ void hdd_conf_mcastbcast_filter(hdd_context_t* pHddCtx, v_BOOL_t setfilter)
 
     wlanRxpFilterParam->setMcstBcstFilter = setfilter;
     halStatus = sme_ConfigureRxpFilter(pHddCtx->hHal, wlanRxpFilterParam);
-
-    if (setfilter && (eHAL_STATUS_SUCCESS == halStatus))
-       pHddCtx->hdd_mcastbcast_filter_set = TRUE;
-
-    hddLog(VOS_TRACE_LEVEL_INFO, "%s to post set/reset filter to"
-           "lower mac with status %d"
-           "configuredMcstBcstFilterSetting = %d"
-           "setMcstBcstFilter = %d",(eHAL_STATUS_SUCCESS != halStatus) ?
-           "Failed" : "Success", halStatus,
-           wlanRxpFilterParam->configuredMcstBcstFilterSetting,
-           wlanRxpFilterParam->setMcstBcstFilter);
-
     if (eHAL_STATUS_SUCCESS != halStatus)
         vos_mem_free(wlanRxpFilterParam);
+    if(setfilter && (eHAL_STATUS_SUCCESS == halStatus))
+       pHddCtx->hdd_mcastbcast_filter_set = TRUE;
 }
 
 static void hdd_conf_suspend_ind(hdd_context_t* pHddCtx,
@@ -1419,13 +1373,6 @@ void hdd_suspend_wlan(void)
       return;
    }
 
-   if (pHddCtx->hdd_wlan_suspended)
-   {
-      hddLog(VOS_TRACE_LEVEL_ERROR,
-             "%s: Ignore suspend wlan, Already suspended!", __func__);
-      return;
-   }
-
    pHddCtx->hdd_wlan_suspended = TRUE;
    hdd_set_pwrparams(pHddCtx);
    status =  hdd_get_front_adapter ( pHddCtx, &pAdapterNode );
@@ -1461,7 +1408,6 @@ void hdd_suspend_wlan(void)
        if (pHddCtx->cfg_ini->nEnableSuspend == WLAN_MAP_SUSPEND_TO_STANDBY)
        {
           //stop the interface before putting the chip to standby
-          hddLog(VOS_TRACE_LEVEL_INFO, FL("Disabling queues"));
           netif_tx_disable(pAdapter->dev);
           netif_carrier_off(pAdapter->dev);
        }
@@ -1717,13 +1663,6 @@ void hdd_resume_wlan(void)
    {
       hddLog(VOS_TRACE_LEVEL_INFO,
              "%s: Ignore resume wlan, LOGP in progress!", __func__);
-      return;
-   }
-
-   if (!pHddCtx->hdd_wlan_suspended)
-   {
-      hddLog(VOS_TRACE_LEVEL_ERROR,
-             "%s: Ignore resume wlan, Already resumed!", __func__);
       return;
    }
 
@@ -2067,9 +2006,6 @@ VOS_STATUS hdd_wlan_re_init(void)
 #ifdef HAVE_WCNSS_CAL_DOWNLOAD
    int              max_retries = 0;
 #endif
-#ifdef HAVE_CBC_DONE
-   int              max_cbc_retries = 0;
-#endif
 #ifdef WLAN_BTAMP_FEATURE
    hdd_config_t     *pConfig = NULL;
    WLANBAP_ConfigType btAmpConfig;
@@ -2087,15 +2023,6 @@ VOS_STATUS hdd_wlan_re_init(void)
    if (max_retries >= 10) {
       hddLog(VOS_TRACE_LEVEL_FATAL,"%s: WCNSS driver not ready", __func__);
       goto err_re_init;
-   }
-#endif
-
-#ifdef HAVE_CBC_DONE
-   while (!wcnss_cbc_complete() && 20 >= ++max_cbc_retries) {
-       msleep(1000);
-   }
-   if (max_cbc_retries >= 20) {
-      hddLog(VOS_TRACE_LEVEL_FATAL, "%s:CBC not completed", __func__);
    }
 #endif
 
@@ -2287,6 +2214,8 @@ err_vosclose:
        /* If we hit this, it means wlan driver is in bad state and needs
        * driver unload and load.
        */
+       if (pHddCtx)
+           pHddCtx->isLogpInProgress = FALSE;
        vos_set_reinit_in_progress(VOS_MODULE_ID_VOSS, FALSE);
        return VOS_STATUS_E_FAILURE;
    }

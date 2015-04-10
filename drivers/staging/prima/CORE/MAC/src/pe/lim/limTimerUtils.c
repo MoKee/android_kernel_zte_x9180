@@ -909,16 +909,7 @@ limAssocFailureTimerHandler(void *pMacGlobal, tANI_U32 param)
        (pMac->lim.pSessionEntry->limMlmState == eLIM_MLM_WT_FT_REASSOC_RSP_STATE))
     {
         limLog(pMac, LOGE, FL("Reassoc timeout happened"));
-#ifdef FEATURE_WLAN_ESE
-        if (((pMac->lim.pSessionEntry->isESEconnection) &&
-             (pMac->lim.reAssocRetryAttempt <
-             (LIM_MAX_REASSOC_RETRY_LIMIT - 1)))||
-            ((!pMac->lim.pSessionEntry->isESEconnection) &&
-             (pMac->lim.reAssocRetryAttempt < LIM_MAX_REASSOC_RETRY_LIMIT))
-           )
-#else
-        if (pMac->lim.reAssocRetryAttempt < LIM_MAX_REASSOC_RETRY_LIMIT)
-#endif
+        if(pMac->lim.reAssocRetryAttempt < LIM_MAX_REASSOC_RETRY_LIMIT)
         {
             limSendRetryReassocReqFrame(pMac, pMac->lim.pSessionEntry->pLimMlmReassocRetryReq, pMac->lim.pSessionEntry);
             pMac->lim.reAssocRetryAttempt++;
@@ -2250,8 +2241,8 @@ limChannelSwitchTimerHandler(void *pMacGlobal, tANI_U32 param)
     tSirMsgQ    msg;
     tpAniSirGlobal pMac = (tpAniSirGlobal)pMacGlobal;
 
-    limLog(pMac, LOG1,
-        FL("ChannelSwitch Timer expired.  Posting msg to LIM "));
+    PELOG1(limLog(pMac, LOG1,
+        FL("ChannelSwitch Timer expired.  Posting msg to LIM "));)
 
     msg.type = SIR_LIM_CHANNEL_SWITCH_TIMEOUT;
     msg.bodyval = (tANI_U32)param;
@@ -2270,8 +2261,8 @@ limQuietTimerHandler(void *pMacGlobal, tANI_U32 param)
     msg.bodyval = (tANI_U32)param;
     msg.bodyptr = NULL;
 
-    limLog(pMac, LOG1,
-        FL("Post SIR_LIM_QUIET_TIMEOUT msg. "));
+    PELOG1(limLog(pMac, LOG1,
+        FL("Post SIR_LIM_QUIET_TIMEOUT msg. "));)
     limPostMsgApi(pMac, &msg);
 }
 
@@ -2284,8 +2275,8 @@ limQuietBssTimerHandler(void *pMacGlobal, tANI_U32 param)
     msg.type = SIR_LIM_QUIET_BSS_TIMEOUT;
     msg.bodyval = (tANI_U32)param;
     msg.bodyptr = NULL;
-    limLog(pMac, LOG1,
-        FL("Post SIR_LIM_QUIET_BSS_TIMEOUT msg. "));
+    PELOG1(limLog(pMac, LOG1,
+        FL("Post SIR_LIM_QUIET_BSS_TIMEOUT msg. "));)
     limPostMsgApi(pMac, &msg);
 }
 #if 0

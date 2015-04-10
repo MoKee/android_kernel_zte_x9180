@@ -465,10 +465,8 @@ typedef enum
 
   WDI_SPOOF_MAC_ADDR_REQ                         = 101,
 
-  WDI_GET_FW_STATS_REQ                           = 102,
-
   /* Send command to encrypt the given message */
-  WDI_ENCRYPT_MSG_REQ                            = 103,
+  WDI_ENCRYPT_MSG_REQ                            = 102,
 
   WDI_MAX_REQ,
 
@@ -795,10 +793,9 @@ typedef enum
   WDI_EXTSCAN_RESET_SIGNF_RSSI_CHANGE_RSP        = 100,
 #endif
   WDI_SPOOF_MAC_ADDR_RSP                         = 101,
-  WDI_GET_FW_STATS_RSP                           = 102,
 
   /* Send command to encrypt the given message */
-  WDI_ENCRYPT_MSG_RSP                            = 103,
+  WDI_ENCRYPT_MSG_RSP                            = 102,
   /*-------------------------------------------------------------------------
     Indications
      !! Keep these last in the enum if possible
@@ -1237,9 +1234,6 @@ typedef struct
 
   /* reason for WDI_DetectedDeviceError */
   void *                        DeviceErrorReason;
-
-   /* Roam delay statistic enabled in ini*/
-   wpt_uint8                  roamDelayStatsEnabled;
 }WDI_ControlBlockType; 
 
 
@@ -5836,20 +5830,6 @@ WDI_ProcessBatchScanResultInd
 );
 
 #endif /* FEATURE_WLAN_BATCH_SCAN */
-
-WDI_Status
-WDI_ProcessGetFwStatsReq
-(
-  WDI_ControlBlockType*  pWDICtx,
-  WDI_EventInfoType*     pEventData
-);
-
-WDI_Status
-WDI_ProcessGetFwStatsRsp
-(
-  WDI_ControlBlockType*  pWDICtx,
-  WDI_EventInfoType*     pEventData
-);
 
 #ifdef FEATURE_WLAN_CH_AVOID
 /**

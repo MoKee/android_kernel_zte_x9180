@@ -340,7 +340,6 @@ typedef enum eSirResultCodes
     eSIR_SME_BMPS_REQ_FAILED,
     eSIR_SME_BMPS_REQ_REJECT,
     eSIR_SME_UAPSD_REQ_FAILED,
-    eSIR_SME_UAPSD_REQ_INVALID,
     eSIR_SME_WOWL_ENTER_REQ_FAILED,
     eSIR_SME_WOWL_EXIT_REQ_FAILED,
 #if defined WLAN_FEATURE_VOWIFI_11R
@@ -680,9 +679,6 @@ typedef struct sSirSmeStartBssReq
     tANI_BOOLEAN            pmfRequired;
 #endif
 
-#ifdef WLAN_FEATURE_AP_HT40_24G
-    tANI_BOOLEAN            apHT40_24GEnabled;
-#endif
 } tSirSmeStartBssReq, *tpSirSmeStartBssReq;
 
 #define GET_IE_LEN_IN_BSS(lenInBss) ( lenInBss + sizeof(lenInBss) - \
@@ -1039,7 +1035,6 @@ typedef struct sSirSmeJoinReq
     tSirBssType         bsstype;                // add new type for BT -AMP STA and AP Modules
     tANI_U8             dot11mode;              // to support BT-AMP     
     tVOS_CON_MODE       staPersona;             //Persona
-    tANI_BOOLEAN        bOSENAssociation;       //HS2.0
     ePhyChanBondState   cbMode;                 // Pass CB mode value in Join.
 
     /*This contains the UAPSD Flag for all 4 AC
@@ -1052,7 +1047,6 @@ typedef struct sSirSmeJoinReq
 
     tSirMacRateSet      operationalRateSet;// Has 11a or 11b rates
     tSirMacRateSet      extendedRateSet;    // Has 11g rates
-    tANI_U16            rateBitMap;
     tSirRSNie           rsnIE;                  // RSN IE to be sent in
                                                 // (Re) Association Request
 #ifdef FEATURE_WLAN_ESE
@@ -1191,9 +1185,6 @@ typedef struct sSirSmeAssocInd
     tSirMacPowerCapInfo     powerCap;
     tSirSupChnl             supportedChannels;
     tAniBool             wmmEnabledSta; /* if present - STA is WMM enabled */
-#ifdef WLAN_FEATURE_AP_HT40_24G
-    tAniBool             HT40MHzIntoEnabledSta; /* if present - STA Enable 40 MHz Intolerant */
-#endif
     tAniBool             reassocReq;
     // Required for indicating the frames to upper layer
     tANI_U32             beaconLength;
@@ -3427,28 +3418,6 @@ typedef struct sSirChangeBIParams
     tANI_U8        sessionId;      // Session ID
 } tSirChangeBIParams, *tpSirChangeBIParams;
 
-#ifdef WLAN_FEATURE_AP_HT40_24G
-typedef struct sSirSetHT2040Mode
-{
-    tANI_U16       messageType;
-    tANI_U16       length;
-    tANI_U8        cbMode;
-    tSirMacAddr    bssId;
-    tANI_U8        sessionId;      // Session ID
-} tSirSetHT2040Mode, *tpSirSetHT2040Mode;
-
-typedef struct sSirHT2040CoexInfoInd
-{
-    tANI_U16       messageType; //  eWNI_SME_2040_COEX_IND
-    tANI_U16       length;
-    tANI_U8        sessionId;
-    tANI_U8        HT40MHzIntolerant;
-    tANI_U8        HT20MHzBssWidthReq;
-    tANI_U8        channel_num;
-    tANI_U8        HT2040BssIntoChanReport [1]; //variable
-}tSirHT2040CoexInfoInd, *tpSirHT2040CoexInfoInd;
-#endif
-
 typedef struct sSirOBSSHT40Param
 {
    tANI_U16 OBSSScanPassiveDwellTime;
@@ -3646,8 +3615,6 @@ typedef struct sSirSmeDelStaSelfRsp
 #define SIR_COEX_IND_TYPE_ENABLE_UAPSD (6)
 #define SIR_COEX_IND_TYPE_DISABLE_UAPSD (7)
 #define SIR_COEX_IND_TYPE_CXM_FEATURES_NOTIFICATION (8)
-#define SIR_COEX_IND_TYPE_TDLS_ENABLE  (6)
-#define SIR_COEX_IND_TYPE_TDLS_DISABLE (7)
 
 typedef struct sSirSmeCoexInd
 {
@@ -4577,7 +4544,6 @@ typedef struct sSirUpdateChanParam
 
 typedef struct sSirUpdateChan
 {
-    tANI_U8 regId;
     tANI_U8 numChan;
     tSirUpdateChanParam chanParam[1];
 } tSirUpdateChanList, *tpSirUpdateChanList;
@@ -4815,8 +4781,7 @@ typedef struct sSirChAvoidIndType
 
 typedef void (*pGetBcnMissRateCB)( tANI_S32 bcnMissRate,
                                    VOS_STATUS status, void *data);
-typedef void (*tSirFWStatsCallback)(VOS_STATUS status,
-                    tSirFwStatsResult *fwStatsRsp, void *pContext);
+
 typedef PACKED_PRE struct PACKED_POST
 {
    tANI_U32   msgLen;
@@ -4855,19 +4820,6 @@ typedef struct
   u32  statsClearReqMask;
   u8   stopReq;
 }tSirLLStatsClearReq, *tpSirLLStatsClearReq;
-
-typedef PACKED_PRE struct PACKED_POST
-{
-  u32 stats;
-  tSirFWStatsCallback callback;
-  void *data;
-}tSirFWStatsGetReq;
-
-typedef PACKED_PRE struct PACKED_POST
-{
-  tSirFWStatsCallback callback;
-  void *data;
-}tSirFWStatsInfo;
 
 /*---------------------------------------------------------------------------
   WLAN_HAL_LL_NOTIFY_STATS
@@ -5669,21 +5621,4 @@ typedef struct
    tANI_U16   mesgLen;
    tSetEncryptedDataRspParams   encryptedDataRsp;
 } tSirEncryptedDataRspParams, *tpSirEncryptedDataRspParams;
-
-typedef enum eSirAbortScanStatus
-{
-    eSIR_ABORT_ACTIVE_SCAN_LIST_EMPTY,
-    eSIR_ABORT_ACTIVE_SCAN_LIST_NOT_EMPTY,
-    eSIR_ABORT_SCAN_FAILURE
-}tSirAbortScanStatus;
-
-/* Max number of rates allowed in Supported Rates IE */
-#define MAX_NUM_SUPPORTED_RATES (8)
-
-typedef struct sSirSmeUpdateMaxRateParams
-{
-    tANI_U32        maxRateFlag;
-    tANI_U8         smeSessionId;
-}tSirSmeUpdateMaxRateParams, *tpSirSmeUpdateMaxRateParams;
-
 #endif /* __SIR_API_H */

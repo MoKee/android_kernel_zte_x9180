@@ -63,14 +63,6 @@ should not be more than 2000 */
 #define TDLS_IS_CONNECTED(peer)  \
         ((eTDLS_LINK_CONNECTED == (peer)->link_status) || \
          (eTDLS_LINK_TEARING == (peer)->link_status))
-
-/* TDLS Off Channel Bandwidth Offset */
-#define TDLS_OFF_CHANNEL_BW_OFFSET  0
-
-/* TDLS Channel Switch Request */
-#define TDLS_CHANNEL_SWITCH_ENABLE  1
-#define TDLS_CHANNEL_SWITCH_DISABLE 2
-
 typedef struct
 {
     tANI_U32    tdls;
@@ -217,8 +209,6 @@ typedef struct _hddTdlsPeer_t {
     /*EXT TDLS*/
     tTDLSLinkReason reason;
     cfg80211_exttdls_callback state_change_notification;
-    tANI_BOOLEAN   isOffChannelConfigured;
-    tdls_req_params_t peerParams;
 } hddTdlsPeer_t;
 
 typedef struct {
@@ -234,7 +224,7 @@ int wlan_hdd_sta_tdls_init(hdd_adapter_t *pAdapter);
 
 void wlan_hdd_tdls_init(hdd_context_t * pHddCtx);
 
-void wlan_hdd_tdls_exit(hdd_adapter_t *pAdapter, tANI_BOOLEAN mutexLock);
+void wlan_hdd_tdls_exit(hdd_adapter_t *pAdapter);
 
 void wlan_hdd_tdls_extract_da(struct sk_buff *skb, u8 *mac);
 
@@ -340,7 +330,6 @@ int wlan_hdd_tdls_set_force_peer(hdd_adapter_t *pAdapter, u8 *mac,
 int wlan_hdd_tdls_extctrl_deconfig_peer(hdd_adapter_t *pAdapter, u8 *peer);
 int wlan_hdd_tdls_extctrl_config_peer(hdd_adapter_t *pAdapter,
                                       u8 *peer,
-                                      tdls_req_params_t *tdls_peer_params,
                                       cfg80211_exttdls_callback callback);
 /*EXT TDLS*/
 int wlan_hdd_tdls_get_status(hdd_adapter_t *pAdapter,
@@ -352,11 +341,7 @@ void wlan_hdd_tdls_get_wifi_hal_state(hddTdlsPeer_t *curr_peer,
                                       tANI_S32 *reason);
 int wlan_hdd_set_callback(hddTdlsPeer_t *curr_peer,
                           cfg80211_exttdls_callback callback);
-int hdd_set_tdls_scan_type(hdd_adapter_t *pAdapter,
-                   tANI_U8 *ptr);
 
 // tdlsoffchan
-hddTdlsPeer_t *wlan_hdd_tdls_get_connected_peer(hdd_adapter_t *pAdapter);
-
-int wlan_hdd_validate_tdls_context(hdd_context_t *pHddCtx, tdlsCtx_t *pTdlsCtx);
+hddTdlsPeer_t *wlan_hdd_tdls_get_first_connected_peer(hdd_adapter_t *pAdapter);
 #endif // __HDD_TDSL_H

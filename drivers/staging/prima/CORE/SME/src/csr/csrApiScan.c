@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -2056,35 +2056,6 @@ static void csrScanAddToOccupiedChannels(
         } 
     }
 }
-
-void csrAddChannelToOccupiedChannelList(tpAniSirGlobal pMac,
-                                     tANI_U8   channel)
-{
-    eHalStatus status;
-    tCsrChannel *pOccupiedChannels = &pMac->scan.occupiedChannels;
-    tANI_U8 numOccupiedChannels = pOccupiedChannels->numChannels;
-    tANI_U8 *pOccupiedChannelList = pOccupiedChannels->channelList;
-    if (!csrIsChannelPresentInList(pOccupiedChannelList,
-         numOccupiedChannels, channel))
-    {
-        status = csrAddToChannelListFront(pOccupiedChannelList,
-                                          numOccupiedChannels, channel);
-        if(HAL_STATUS_SUCCESS(status))
-        {
-            pOccupiedChannels->numChannels++;
-            smsLog(pMac, LOG2, FL("added channel %d to the list (count=%d)"),
-                channel, pOccupiedChannels->numChannels);
-            if (pOccupiedChannels->numChannels >
-                CSR_BG_SCAN_OCCUPIED_CHANNEL_LIST_LEN)
-            {
-                pOccupiedChannels->numChannels =
-                    CSR_BG_SCAN_OCCUPIED_CHANNEL_LIST_LEN;
-                smsLog(pMac, LOG2,
-                       FL("trim no of Channels for Occ channel list"));
-            }
-        }
-    }
-}
 #endif
 
 //Put the BSS into the scan result list
@@ -2746,10 +2717,6 @@ eHalStatus csrScanningStateMsgProcessor( tpAniSirGlobal pMac, void *pMsgBuf )
             vos_mem_copy(pRoamInfo->peerMac, pUpperLayerAssocCnf->peerMacAddr, sizeof(tSirMacAddr));
             vos_mem_copy(&pRoamInfo->bssid, pUpperLayerAssocCnf->bssId, sizeof(tCsrBssid));
             pRoamInfo->wmmEnabledSta = pUpperLayerAssocCnf->wmmEnabledSta;
-#ifdef WLAN_FEATURE_AP_HT40_24G
-            pRoamInfo->HT40MHzIntoEnabledSta =
-                       pUpperLayerAssocCnf->HT40MHzIntoEnabledSta;
-#endif
             if(CSR_IS_INFRA_AP(pRoamInfo->u.pConnectedProfile) )
             {
                 pMac->roam.roamSession[sessionId].connectState = eCSR_ASSOC_STATE_TYPE_INFRA_CONNECTED;
@@ -5798,26 +5765,7 @@ eHalStatus csrScanRetrieveResult(tpAniSirGlobal pMac, tSmeCmd *pCommand)
     return (status);
 }
 
-eHalStatus csrProcessMacAddrSpoofCommand( tpAniSirGlobal pMac, tSmeCmd *pCommand )
-{
-   tSirSpoofMacAddrReq *pMsg;
-   tANI_U16 msgLen;
-   eHalStatus status = eHAL_STATUS_FAILURE;
-   do {
-      msgLen = sizeof(tSirSpoofMacAddrReq);
 
-      pMsg = vos_mem_malloc(msgLen);
-      if ( NULL == pMsg )
-          return eHAL_STATUS_FAILURE;
-      pMsg->messageType= pal_cpu_to_be16((tANI_U16)eWNI_SME_MAC_SPOOF_ADDR_IND);
-      pMsg->length= pal_cpu_to_be16(msgLen);
-      // spoof mac address
-      vos_mem_copy((tANI_U8 *)pMsg->macAddr,
-           (tANI_U8 *)pCommand->u.macAddrSpoofCmd.macAddr, sizeof(tSirMacAddr));
-      status = palSendMBMessage(pMac->hHdd, pMsg);
-   } while( 0 );
-   return( status );
-}
 
 eHalStatus csrProcessScanCommand( tpAniSirGlobal pMac, tSmeCmd *pCommand )
 {
@@ -7934,11 +7882,10 @@ eHalStatus csrProcessSetBGScanParam(tpAniSirGlobal pMac, tSmeCmd *pCommand)
 }
 
 
-tSirAbortScanStatus csrScanAbortMacScan(tpAniSirGlobal pMac,
-                                        tANI_U8 sessionId,
-                                        eCsrAbortReason reason)
+eHalStatus csrScanAbortMacScan(tpAniSirGlobal pMac, tANI_U8 sessionId,
+                               eCsrAbortReason reason)
 {
-    tSirAbortScanStatus abortScanStatus = eSIR_ABORT_ACTIVE_SCAN_LIST_EMPTY;
+    eHalStatus status = eHAL_STATUS_FAILURE;
     tSirSmeScanAbortReq *pMsg;
     tANI_U16 msgLen;
     tListElem *pEntry;
@@ -7989,8 +7936,8 @@ tSirAbortScanStatus csrScanAbortMacScan(tpAniSirGlobal pMac,
             pMsg = vos_mem_malloc(msgLen);
             if ( NULL == pMsg )
             {
+               status = eHAL_STATUS_FAILURE;
                smsLog(pMac, LOGE, FL("Failed to allocate memory for SmeScanAbortReq"));
-               abortScanStatus = eSIR_ABORT_SCAN_FAILURE;
             }
             else
             {
@@ -8003,21 +7950,12 @@ tSirAbortScanStatus csrScanAbortMacScan(tpAniSirGlobal pMac,
                 pMsg->type = pal_cpu_to_be16((tANI_U16)eWNI_SME_SCAN_ABORT_IND);
                 pMsg->msgLen = pal_cpu_to_be16(msgLen);
                 pMsg->sessionId = sessionId;
-                if (eHAL_STATUS_SUCCESS != palSendMBMessage(pMac->hHdd, pMsg))
-                {
-                    smsLog(pMac, LOGE,
-                           FL("Failed to post eWNI_SME_SCAN_ABORT_IND"));
-                    abortScanStatus = eSIR_ABORT_SCAN_FAILURE;
-                }
-                else
-                {
-                    abortScanStatus = eSIR_ABORT_ACTIVE_SCAN_LIST_NOT_EMPTY;
-                }
+                status = palSendMBMessage(pMac->hHdd, pMsg);
             }
         }
     }
 
-    return(abortScanStatus);
+    return(status);
 }
 
 void csrRemoveCmdWithSessionIdFromPendingList(tpAniSirGlobal pMac,
@@ -8236,12 +8174,7 @@ eHalStatus csrScanAbortMacScanNotForConnect(tpAniSirGlobal pMac,
     if( !csrIsScanForRoamCommandActive( pMac ) )
     {
         //Only abort the scan if it is not used for other roam/connect purpose
-        if (eSIR_ABORT_SCAN_FAILURE ==
-                csrScanAbortMacScan(pMac, sessionId, eCSR_SCAN_ABORT_DEFAULT))
-        {
-            smsLog(pMac, LOGE, FL("fail to abort scan"));
-            status = eHAL_STATUS_FAILURE;
-        }
+        status = csrScanAbortMacScan(pMac, sessionId, eCSR_SCAN_ABORT_DEFAULT);
     }
 
     return (status);

@@ -33,6 +33,9 @@
   This software unit holds the implementation of the WLAN Protocol Engine for
   P2P.
 
+  Copyright (c) 2011 QUALCOMM Incorporated.
+  All Rights Reserved.
+  Qualcomm Confidential and Proprietary
 ===========================================================================*/
 
 /*===========================================================================
@@ -86,7 +89,7 @@ extern tSirRetStatus limSetLinkState(
                          tpSetLinkStateCallback callback, void *callbackArg);
 
 static tSirRetStatus limCreateSessionForRemainOnChn(tpAniSirGlobal pMac, tPESession **ppP2pSession);
-eHalStatus limP2PActionCnf(tpAniSirGlobal pMac, void *pData);
+eHalStatus limP2PActionCnf(tpAniSirGlobal pMac, tANI_U32 txCompleteSuccess);
 
 /*----------------------------------------------------------------------------
  *
@@ -670,7 +673,7 @@ void limRemainOnChnRsp(tpAniSirGlobal pMac, eHalStatus status, tANI_U32 *data)
     tANI_U8             sessionId;
     tSirRemainOnChnReq *MsgRemainonChannel = pMac->lim.gpLimRemainOnChanReq;
     tSirMacAddr             nullBssid = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-    tANI_U32 txStatus = 0;
+
     if ( NULL == MsgRemainonChannel )
     {
         PELOGE(limLog( pMac, LOGP,
@@ -724,7 +727,7 @@ void limRemainOnChnRsp(tpAniSirGlobal pMac, eHalStatus status, tANI_U32 *data)
     {
        limLog(pMac, LOGE,
               FL("Remain on channel expired, Action frame status failure"));
-       limP2PActionCnf(pMac, &txStatus);
+       limP2PActionCnf(pMac, 0);
     }
 
     return;
@@ -836,19 +839,8 @@ void limSendSmeMgmtFrameInd(
 } /*** end limSendSmeListenRsp() ***/
 
 
-eHalStatus limP2PActionCnf(tpAniSirGlobal pMac, void *pData)
+eHalStatus limP2PActionCnf(tpAniSirGlobal pMac, tANI_U32 txCompleteSuccess)
 {
-    tANI_U32 txCompleteSuccess;
-
-    if (!pData)
-    {
-        limLog(pMac, LOG1,
-                FL(" pData is NULL"));
-        return eHAL_STATUS_FAILURE;
-    }
-
-    txCompleteSuccess = *((tANI_U32*) pData);
-
     limLog(pMac, LOG1,
               FL(" %s txCompleteSuccess %d, Session Id %d"),
               __func__, txCompleteSuccess, pMac->lim.mgmtFrameSessionId);
