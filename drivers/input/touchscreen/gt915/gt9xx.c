@@ -669,8 +669,8 @@ static ssize_t ztemt_wakeup_gesture_store(struct device *dev,
 
 	ts->wakeup_gesture = (u8)value;
 
-	if(ts->wakeup_gesture == 1 && ts->gtp_is_suspend == 1 &&  DOZE_DISABLED == doze_status)
-		gtp_enter_doze(ts);
+//	if(ts->wakeup_gesture == 1 && ts->gtp_is_suspend == 1 &&  DOZE_DISABLED == doze_status)
+//		gtp_enter_doze(ts);
 
 	return size;
 }
