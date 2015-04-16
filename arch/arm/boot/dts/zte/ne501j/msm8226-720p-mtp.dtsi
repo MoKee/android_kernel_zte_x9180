@@ -368,6 +368,7 @@
 				                 54 56 58 5a 5c 5e 60 
 				                 62 64];
 				qcom,use-blink = <1>;
+				qcom,in-order-command-processing;
 			};
 		};
 
