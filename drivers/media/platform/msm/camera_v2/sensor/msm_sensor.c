@@ -28,6 +28,8 @@
 #define CDBG(fmt, args...) do { } while (0)
 #endif
 
+extern void ZtemtMoveFocus(unsigned short reg_addr, unsigned char write_data_8);
+
 static int32_t msm_camera_get_power_settimgs_from_sensor_lib(
 	struct msm_camera_power_ctrl_t *power_info,
 	struct msm_sensor_power_setting_array *power_setting_array)
@@ -1037,6 +1039,45 @@ int msm_sensor_config(struct msm_sensor_ctrl_t *s_ctrl, void __user *argp)
 		}
 		break;
 	}
+	/* ZTEMT: Jinghongliang Add for Manual AF Mode ----Start */
+	case CFG_SET_MANUAL_AF_ZTEMT: {
+			int32_t value = 0;
+			int32_t lens_position = 0;
+			uint16_t MSB = 0;
+			uint16_t LSB = 0;
+			uint16_t addr = 0;
+			uint16_t data = 0;
+			if(copy_from_user(&value,
+				(void *)cdata->cfg.setting,sizeof(int32_t))){
+				pr_err("%s:%d failed\n", __func__, __LINE__);
+				rc = -EFAULT;
+			break;
+			}else{
+				printk("<ZTEMT_CAM> Manual AF value = %d \n",value);
+				if(value < 0 || value > 79) {     /* if over total steps*/
+					break;
+				}
+
+				if(value < 5) {
+					lens_position = 100+10*value;
+				} else {
+					lens_position = 140 + 7*(value-4);
+				}
+
+				if(value == 79)
+					lens_position = 900;   /* push the VCM to Macro position*/
+
+				MSB = ( lens_position & 0x0300 ) >> 8;
+				LSB = lens_position & 0xFF;
+				lens_position = lens_position | 0xF400;
+				addr = (lens_position & 0xFF00) >> 8;
+				data = lens_position & 0xFF;
+				printk("<<<ZTEMT_JHL>>> addr = 0x%x, data = 0x%x\n",addr,data);
+				ZtemtMoveFocus(addr,data);
+			}
+		break;
+	}
+	/* ZTEMT: Jinghongliang Add for Manual AF Mode ----End */
 	default:
 		rc = -EFAULT;
 		break;
