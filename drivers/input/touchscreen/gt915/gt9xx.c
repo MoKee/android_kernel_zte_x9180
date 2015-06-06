@@ -820,6 +820,7 @@ static void goodix_ts_work_func(struct work_struct *work)
 
 #if GTP_GESTURE_WAKEUP
     u8 doze_buf[3] = {0x81, 0x4B};
+    u8 gesture_data[6] = {0x81, 0x4D};
 #endif
 
     GTP_DEBUG_FUNC();
@@ -885,6 +886,24 @@ static void goodix_ts_work_func(struct work_struct *work)
             else if (0xCC == doze_buf[2])
             {
                 GTP_INFO("Double click to light up the screen!");
+
+                gtp_i2c_read(i2c_connect_client, gesture_data, 6);
+#if 1
+                GTP_INFO("gesture_data[2] = %d", gesture_data[2]);
+                GTP_INFO("gesture_data[3] = %d", gesture_data[3]);
+                GTP_INFO("gesture_data[4] = %d", gesture_data[4]);
+                GTP_INFO("gesture_data[5] = %d", gesture_data[5]);
+#endif
+                // 1 0 0 -> left touch button
+                // 2 0 0 -> middle touch button
+                // 4 0 0 -> right touch button
+                if (((gesture_data[2] == 1) || (gesture_data[2] == 2) || (gesture_data[2] == 4)) &&
+                    ((gesture_data[3] == 0) && (gesture_data[4] == 0) && (gesture_data[5] == 0))) {
+                    GTP_INFO("Double click by key report ignore light up the screen!");
+                } else {
+                    GTP_INFO("Double click AA area to light up the screen!");
+                }
+
                 doze_status = DOZE_WAKEUP;
 #if 0
 				input_report_key(ts->input_dev, KEY_F10, 1);
