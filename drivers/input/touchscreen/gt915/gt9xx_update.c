@@ -40,7 +40,7 @@
 #include <linux/namei.h>
 #include <linux/mount.h>
 #if ((GTP_AUTO_UPDATE && GTP_HEADER_FW_UPDATE) || GTP_COMPATIBLE_MODE)
-    #include "gt9xx_firmware-1030.h"
+    #include "gt9xx_firmware-1050.h"
 #endif
 #define GT915_FORCE_UPDATE			0
 
