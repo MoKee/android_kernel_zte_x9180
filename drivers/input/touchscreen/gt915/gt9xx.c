@@ -821,6 +821,7 @@ static void goodix_ts_work_func(struct work_struct *work)
 #if GTP_GESTURE_WAKEUP
     u8 doze_buf[3] = {0x81, 0x4B};
     u8 gesture_data[6] = {0x81, 0x4D};
+    u8 key_code = KEY_POWER;
 #endif
 
     GTP_DEBUG_FUNC();
@@ -888,20 +889,23 @@ static void goodix_ts_work_func(struct work_struct *work)
                 GTP_INFO("Double click to light up the screen!");
 
                 gtp_i2c_read(i2c_connect_client, gesture_data, 6);
-#if 1
+#if 0
                 GTP_INFO("gesture_data[2] = %d", gesture_data[2]);
                 GTP_INFO("gesture_data[3] = %d", gesture_data[3]);
                 GTP_INFO("gesture_data[4] = %d", gesture_data[4]);
                 GTP_INFO("gesture_data[5] = %d", gesture_data[5]);
 #endif
-                // 1 0 0 -> left touch button
-                // 2 0 0 -> middle touch button
-                // 4 0 0 -> right touch button
-                if (((gesture_data[2] == 1) || (gesture_data[2] == 2) || (gesture_data[2] == 4)) &&
-                    ((gesture_data[3] == 0) && (gesture_data[4] == 0) && (gesture_data[5] == 0))) {
-                    GTP_INFO("Double click by key report ignore light up the screen!");
+                if ((gesture_data[3] == 0) && (gesture_data[4] == 0) && (gesture_data[5] == 0)) {
+                    if(gesture_data[2] == 1)
+                        key_code = KEY_DT2W_LEFT;
+                    else if(gesture_data[2] == 2)
+                        key_code = KEY_DT2W_MIDDLE;
+                    else if(gesture_data[2] == 4)
+                        key_code = KEY_DT2W_RIGHT;
+                    GTP_INFO("Double click by key!");
                 } else {
-                    GTP_INFO("Double click AA area to light up the screen!");
+                    key_code = KEY_DT2W_SCREEN;
+                    GTP_INFO("Double click by display area!");
                 }
 
                 doze_status = DOZE_WAKEUP;
@@ -912,10 +916,10 @@ static void goodix_ts_work_func(struct work_struct *work)
 				input_report_key(ts->input_dev, KEY_F10, 0);
 				input_sync(ts->input_dev);
 #else
-                input_report_key(ts->input_dev, KEY_POWER, 1);
+                input_report_key(ts->input_dev, key_code, 1);
                 input_sync(ts->input_dev);
 		msleep(DT2W_PWRKEY_DUR);
-                input_report_key(ts->input_dev, KEY_POWER, 0);
+                input_report_key(ts->input_dev, key_code, 0);
                 input_sync(ts->input_dev);
 #endif				
                 // clear 0x814B
@@ -2201,6 +2205,10 @@ static s8 gtp_request_input_dev(struct goodix_ts_data *ts)
 
 #if GTP_GESTURE_WAKEUP
     input_set_capability(ts->input_dev, EV_KEY, KEY_POWER);
+    input_set_capability(ts->input_dev, EV_KEY, KEY_DT2W_SCREEN);
+    input_set_capability(ts->input_dev, EV_KEY, KEY_DT2W_LEFT);
+    input_set_capability(ts->input_dev, EV_KEY, KEY_DT2W_MIDDLE);
+    input_set_capability(ts->input_dev, EV_KEY, KEY_DT2W_RIGHT);
 #endif 
 
     input_set_capability(ts->input_dev, EV_KEY, KEY_PALM);

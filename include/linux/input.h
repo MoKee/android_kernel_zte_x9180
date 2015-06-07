@@ -473,6 +473,11 @@ struct input_keymap_entry {
 
 #define KEY_PALM		249	/* Touchpad palm keycode */
 
+#define KEY_DT2W_SCREEN		250
+#define KEY_DT2W_LEFT		251
+#define KEY_DT2W_MIDDLE		252
+#define KEY_DT2W_RIGHT		253
+
 /* Code 255 is reserved for special needs of AT keyboard driver */
 
 #define BTN_MISC		0x100
